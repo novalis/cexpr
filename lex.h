@@ -55,10 +55,14 @@ enum token_type {
     COMMA,
     TILDE,
 
-    /* hack -- not token types but needed for parsing */
+    /* hack -- not token types but we reuse these as parse tree node
+     * types */
     TYPECAST,
     FUNCTION_CALL,
     SUBSCRIPT,
+
+    /* not actually ever returned, but needed for correct lexing */
+    START_COMMENT,
 
     BOGUS,
     END_OF_EXPRESSION

@@ -21,8 +21,9 @@ static struct lex_test tests[] = {
     {"a>>=3", {LITERAL_OR_ID, RIGHT_SHIFT_EQUAL, LITERAL_OR_ID, END_OF_EXPRESSION}},
     {"a->r", {LITERAL_OR_ID, ARROW, LITERAL_OR_ID, END_OF_EXPRESSION}},
     {"a\001", {LITERAL_OR_ID, BOGUS, END_OF_EXPRESSION}},
-    {"\"a\001\"", {LITERAL_OR_ID, END_OF_EXPRESSION}},
-    {0, {}}
+    {"\"a\\001\"", {LITERAL_OR_ID, END_OF_EXPRESSION}},
+    {"\"a\"/*b*/+c", {LITERAL_OR_ID, PLUS, LITERAL_OR_ID, END_OF_EXPRESSION}},
+    {0, {0}}
 };
 
 int assert_token(lex_buf* buf, enum token_type expected_type, const char* expected_value) {

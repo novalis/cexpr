@@ -14,7 +14,7 @@ const char *token_names[] = {
     "&=","|=","*=","-=","+=","/=","<<=",">>=","->",".",
     "=","==","<=",">=","<",">","&&","||","++","--","?",
     ":","sizeof",",","~","(typecast)",
-    "(function call)", "subscript", "bogus", "eof"
+    "(function call)", "subscript", "/*", "bogus", "eof"
 };
 
 struct token_spec {
@@ -53,6 +53,7 @@ struct token_spec token_specs[] = {
     {"+=",PLUS_EQUAL},
     {"/",SLASH},
     {"/=",SLASH_EQUAL},
+    {"/*",START_COMMENT},
     {">", GT},
     {">>",RIGHT_SHIFT},
     {">>=",RIGHT_SHIFT_EQUAL},
@@ -129,7 +130,17 @@ struct token get_next_token(lex_buf* buf) {
         while (rule->children && rule->children[(unsigned char)*pos].token_type) {
             rule = rule->children + (unsigned char)*pos++;
         }
-        if (rule != rules) {
+        if (rule->token_type == START_COMMENT) {
+            while (*pos) {
+                char c = *pos++;
+                if (c == '*') {
+                    if (*pos == '/') {
+                        pos++;
+                        break;
+                    }
+                }
+            }
+        } else if (rule != rules) {
             token.token_type = rule->token_type;
             goto done;
         } else {
