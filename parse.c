@@ -267,12 +267,14 @@ static struct parse_result* parse_primary_expression(struct parse_state *state) 
             tok = get_next_parse_token(state);
             if (tok.token_type != close) {
                 free_result_tree(result);
+                free_result_tree(right_result);
                 return error("Missing %s", token_names[close]);
             }
 
             struct parse_tree_node* old_node = result->node;
             free(result);
             if (right_result->is_error) {
+                free_tree_node(old_node);
                 return right_result;
             }
             enum token_type op = close == CLOSE_PAREN ? FUNCTION_CALL : SUBSCRIPT;
@@ -380,6 +382,9 @@ static struct parse_result* parse_unop(struct parse_state *state) {
             push_back(state, tok);
             //handle parenthesized expression
             result = parse_comma(state);
+            if (result->is_error) {
+                return result;
+            }
             tok = get_next_parse_token(state);
             if (tok.token_type != CLOSE_PAREN) {
                 free_result_tree(result);
@@ -404,6 +409,10 @@ static int is_level_binop(struct token token, int level) {
     return 0;
 }
 
+/*
+ * Binary operations are all parsed the same way, but they're divided
+ * into a bunch of different precedence levels.
+ */
 static struct parse_result* parse_binop(struct parse_state *state, int level) {
     struct parse_result* result;
     if (binops[level][0] == 0) {
@@ -435,14 +444,18 @@ static struct parse_result* parse_binop(struct parse_state *state, int level) {
         if (right_result->is_error) {
             return right_result;
         }
-        result = make_node_result(tok.token_type, result->node, right_result->node);
+        struct parse_tree_node* node = result->node;
+        free(result);
+        result = make_node_result(tok.token_type, node, right_result->node);
+        free(right_result);
     }
 }
 
 static struct parse_result* parse_ternop(struct parse_state *state) {
     struct parse_result *left_result = parse_binop(state, 0);
-    if (left_result->is_error) 
+    if (left_result->is_error) {
         return left_result;
+    }
 
     struct token tok = get_next_parse_token(state);
     if (tok.token_type != QUESTION) {
@@ -525,10 +538,12 @@ static struct parse_result* parse_comma(struct parse_state *state) {
             return result;
         }
         if (!match(tok, COMMA)) {
+            free_result_tree(result);
             return error("Expected comma, got %s", token_names[tok.token_type]);
         }
         struct parse_result *right_result = parse_assignop(state);
         if (right_result->is_error) {
+            free_result_tree(result);
             return right_result;
         }
         result = make_node_result(COMMA, result->node, right_result->node);
@@ -541,6 +556,7 @@ struct parse_result* parse(const char* string) {
     struct parse_result* result = parse_comma(&state);
     struct token tok = get_next_parse_token(&state);
     if (tok.token_type != END_OF_EXPRESSION) {
+        free_result_tree(result);
         return error("Unparsed portion of expression starts with %s", 
                      token_names[tok.token_type]);
     }
