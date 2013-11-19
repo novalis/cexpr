@@ -143,6 +143,7 @@ static int is_assignop(struct token token) {
 static int is_unop(struct token token) {
     switch(token.token_type) {
     case AMPERSAND:
+    case STAR:
     case PLUS:
     case MINUS:
     case BANG:
