@@ -510,7 +510,6 @@ static struct parse_result* parse_comma(struct parse_state *state) {
     }
 }
 
-
 struct parse_result* parse(const char* string) {
     lex_buf lex_buf = start_lex(string);
     struct parse_state state = make_parse_state(&lex_buf);
@@ -521,4 +520,53 @@ struct parse_result* parse(const char* string) {
                      token_names[tok.token_type]);
     }
     return result;
+}
+
+/*
+  Returns a pointer to the new end of the string.  Assumes
+  that the buffer has enough space for the string.
+ */
+char* write_tree_to_string(struct parse_tree_node* node, char* buf) {
+    switch (node->op) {
+    case COMMA:
+        assert (node->left_child);
+        assert (node->right_child);
+        
+        buf = write_tree_to_string(node->left_child, buf);
+        buf += sprintf(buf, ",");
+        buf = write_tree_to_string(node->right_child, buf);
+        break;
+
+    case TYPECAST:
+        buf += sprintf(buf, "((%s)", node->text);
+        assert(!node->left_child);
+        assert(node->right_child);
+        buf = write_tree_to_string(node->right_child, buf);
+        buf += sprintf(buf, ")");
+        break;
+    case FUNCTION_CALL:
+        assert(node->left_child);
+        assert(node->right_child);
+        buf = write_tree_to_string(node->left_child, buf);
+        buf += sprintf(buf, "(");
+        buf = write_tree_to_string(node->right_child, buf);
+        buf += sprintf(buf, ")");
+        break;
+
+    case LITERAL_OR_ID:
+        buf += sprintf(buf, "%s", node->text);
+        break;
+    default:
+        buf += sprintf(buf, "(");
+        if (node->left_child) {
+            buf = write_tree_to_string(node->left_child, buf);
+        }
+        buf += sprintf(buf, "%s", token_names[node->op]);
+        if (node->right_child) {
+            buf = write_tree_to_string(node->right_child, buf);
+        }
+        buf += sprintf(buf, ")");
+        break;
+    }
+    return buf;
 }

@@ -1,55 +1,22 @@
 #include <assert.h>
 #include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
 #include "parse.h"
 #include "lex.h"
 
-void dump_tree(struct parse_tree_node* node) {
-    if (!node) {
-        printf("[nil]");
-        return;
+int dump_tree(const char* expr) {
+
+    struct parse_result* result = parse(expr);
+    if (result->is_error) {
+        printf("Error: %s\n", result->error_message);
+    } else {
+        char* buf = malloc(strlen(expr) * 3 + 1);
+        write_tree_to_string(result->node, buf);
+        printf("%s\n", buf);
     }
 
-    switch (node->op) {
-    case COMMA:
-        assert (node->left_child);
-        assert (node->right_child);
-        
-        dump_tree(node->left_child);
-        printf(",");
-        dump_tree(node->right_child);
-        break;
-
-    case TYPECAST:
-        printf("((%s)", node->text);
-        assert(!node->left_child);
-        assert(node->right_child);
-        dump_tree(node->right_child);
-        printf(")");
-        break;
-    case FUNCTION_CALL:
-        assert(node->left_child);
-        assert(node->right_child);
-        dump_tree(node->left_child);
-        printf("(");
-        dump_tree(node->right_child);
-        printf(")");
-        break;
-
-    case LITERAL_OR_ID:
-        printf("%s", node->text);
-        break;
-    default:
-        printf("(");
-        if (node->left_child) {
-            dump_tree(node->left_child);
-        }
-        printf("%s", token_names[node->op]);
-        if (node->right_child) {
-            dump_tree(node->right_child);
-        }
-        printf(")");
-        break;
-    }
+    return result->is_error;
 }
 
 int main(int argc, char** argv) {
@@ -57,13 +24,5 @@ int main(int argc, char** argv) {
         printf("Error: must supply a single argument\n");
         return 2;
     }
-    struct parse_result* result = parse(argv[1]);
-    if (result->is_error) {
-        printf("Error: %s\n", result->error_message);
-    } else {
-        dump_tree(result->node);
-        printf("\n");
-    }
-
-    return result->is_error;
+    return dump_tree(argv[1]);
 }
