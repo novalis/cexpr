@@ -35,6 +35,11 @@ struct testspec specs[] = {
     {"a+sizeof(unsigned int*)", "(a+sizeof(unsigned int *))"},
     {"a+sizeof b", "(a+sizeof(b))"},
 
+    {"t[(int)b]", "t[((int)b)]"},
+
+    {"t.a.b", "t.a.b"},
+    {"t->a.b->c", "t->a.b->c"},
+
     {0, 0}
 };
 

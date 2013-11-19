@@ -593,11 +593,31 @@ char* write_tree_to_string(struct parse_tree_node* node, char* buf) {
         buf = write_tree_to_string(node->right_child, buf);
         buf += sprintf(buf, ")");
         break;
+
+    case SUBSCRIPT:
+        assert(node->left_child);
+        assert(node->right_child);
+        buf = write_tree_to_string(node->left_child, buf);
+        buf += sprintf(buf, "[");
+        buf = write_tree_to_string(node->right_child, buf);
+        buf += sprintf(buf, "]");
+        break;
+
     case SIZEOF:
         buf += sprintf(buf, "sizeof(%s)", node->text);
         break;
     case LITERAL_OR_ID:
         buf += sprintf(buf, "%s", node->text);
+        break;
+    case DOT:
+        buf = write_tree_to_string(node->left_child, buf);
+        buf += sprintf(buf, ".");
+        buf = write_tree_to_string(node->right_child, buf);
+        break;
+    case ARROW:
+        buf = write_tree_to_string(node->left_child, buf);
+        buf += sprintf(buf, "->");
+        buf = write_tree_to_string(node->right_child, buf);
         break;
     default:
         buf += sprintf(buf, "(");
