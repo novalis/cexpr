@@ -32,6 +32,9 @@ struct testspec specs[] = {
     {"*a(-*b,c,(d))", "(*a((-(*b)),c,d))"},
     {"*a(-*b,c,(d))", "(*a((-(*b)),c,d))"},
 
+    {"a+sizeof(unsigned int*)", "(a+sizeof(unsigned int *))"},
+    {"a+sizeof b", "(a+sizeof(b))"},
+
     {0, 0}
 };
 

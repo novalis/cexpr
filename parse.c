@@ -313,6 +313,19 @@ static struct parse_result* parse_primary_expression(struct parse_state *state) 
     return result;
 }
 
+static char* parse_parenthesized_typename(struct token tok, struct parse_state* state) {
+    //parse until close-paren
+    char* typename = 0;
+    while (tok.token_type != CLOSE_PAREN) {
+        if (tok.token_type == END_OF_EXPRESSION) {
+            return 0;
+        }
+        typename = append_token(typename, tok);
+        tok = get_next_parse_token(state);
+    }
+    return typename;
+}
+
 /* 
    * & + - ! ~ ++expr --expr (typecast) sizeof
  */
@@ -321,7 +334,24 @@ static struct parse_result* parse_unop(struct parse_state *state) {
     struct parse_result* result;
 
     struct token tok = get_next_parse_token(state);
-    if (is_unop(tok)) {
+    if (tok.token_type == SIZEOF) {
+        tok = get_next_parse_token(state);
+        if (tok.token_type == OPEN_PAREN) {
+            //sizeof(typename)
+            tok = get_next_parse_token(state);
+            char* typename = parse_parenthesized_typename(tok, state);
+            if (!typename) {
+                return error("Found EOF when parsing (assumed) typecast");
+            }
+            result = make_node_result(SIZEOF, 0, 0);
+            result->node->text = typename;
+        } else {
+            //sizeof var
+            result = make_node_result(SIZEOF, 0, 0);
+            result->node->text = strdup(tok.token_value);
+        }
+
+    } else if (is_unop(tok)) {
         struct parse_result* right_result = parse_unop(state);
         if (right_result->is_error) {
             return right_result;
@@ -333,14 +363,9 @@ static struct parse_result* parse_unop(struct parse_state *state) {
         //handle typecasts via hack
         tok = get_next_parse_token(state);
         if (is_type_word(tok)) {
-            //parse until close-paren
-            char* typename = 0;
-            while (tok.token_type != CLOSE_PAREN) {
-                if (tok.token_type == END_OF_EXPRESSION) {
-                    return error("Found EOF when parsing (assumed) typecast");
-                }
-                typename = append_token(typename, tok);
-                tok = get_next_parse_token(state);
+            char* typename = parse_parenthesized_typename(tok, state);
+            if (!typename) {
+                return error("Found EOF when parsing (assumed) typecast");
             }
             
             struct parse_result* right_result = parse_unop(state);
@@ -360,7 +385,6 @@ static struct parse_result* parse_unop(struct parse_state *state) {
                 free_result_tree(result);
                 return error("Missing ) parsing parenthesized expression");
             }
-            return result;
         }
     } else {
         push_back(state, tok);
@@ -553,7 +577,9 @@ char* write_tree_to_string(struct parse_tree_node* node, char* buf) {
         buf = write_tree_to_string(node->right_child, buf);
         buf += sprintf(buf, ")");
         break;
-
+    case SIZEOF:
+        buf += sprintf(buf, "sizeof(%s)", node->text);
+        break;
     case LITERAL_OR_ID:
         buf += sprintf(buf, "%s", node->text);
         break;
