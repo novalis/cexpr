@@ -8,35 +8,49 @@
 #include <stdbool.h>
 #include <string.h>
 
+#define PARSE_PUSHBACK_BUF_SIZE 2
+
 struct parse_state {
     lex_buf *buf;
-    struct token push_back;
+    struct token push_back[PARSE_PUSHBACK_BUF_SIZE];
 };
 
 static struct parse_result* parse_comma(struct parse_state *state);
 
 static struct token get_next_parse_token(struct parse_state* state) {
-    struct token ret;
-    if (state->push_back.token_type) {
-        ret = state->push_back;
-        state->push_back.token_type = 0;
-    } else {
-        ret = get_next_token(state->buf);
+
+    for (int i = PARSE_PUSHBACK_BUF_SIZE - 1; i >= 0; --i) {
+        if (state->push_back[i].token_type) {
+            struct token ret = state->push_back[i];
+            state->push_back[i].token_type = 0;
+            return ret;
+        }
     }
-    return ret;
+
+    return get_next_token(state->buf);
+
 }
 
 static void push_back(struct parse_state* state,
     struct token tok) {
-    if (state->push_back.token_type) {
-        printf("Programmer error: pushed back multiple tokens\n");
+    if (state->push_back[PARSE_PUSHBACK_BUF_SIZE-1].token_type) {
+        printf("Programmer error: pushed back too many tokens\n");
         exit(1);
     }
-    state->push_back = tok;
+    for (int i = 0; i < PARSE_PUSHBACK_BUF_SIZE; ++i) {
+        if (state->push_back[i].token_type == 0) {
+            state->push_back[i] = tok;
+            break;
+        }
+    }
 }
 
 static struct parse_state make_parse_state(lex_buf* buf) {
-    return (struct parse_state) {.buf = buf, .push_back = {.token_type = 0}};
+    struct parse_state state = {.buf = buf};
+    for (int i = 0; i < PARSE_PUSHBACK_BUF_SIZE; ++i) {
+        state.push_back[i].token_type = 0;
+    }
+    return state;
 }
 
 static int match(struct token token, enum token_type expected_type) {
@@ -98,7 +112,7 @@ static struct parse_result* make_node_result(enum token_type op,
                                              struct parse_tree_node* left, 
                                              struct parse_tree_node* right) {
 
-    struct parse_result* result = malloc(sizeof(struct parse_result *));
+    struct parse_result* result = malloc(sizeof(struct parse_result));
 
     result->is_error = 0;
     result->node = make_node(op, left, right);
@@ -106,15 +120,16 @@ static struct parse_result* make_node_result(enum token_type op,
 }
 
 static struct parse_tree_node* make_terminal_node(struct token token) {
-    struct parse_tree_node* node = malloc(sizeof(struct parse_tree_node *));
+    struct parse_tree_node* node = malloc(sizeof(struct parse_tree_node));
 
     node->op = token.token_type;
     node->text = token.token_value;
+    node->left_child = node->right_child = 0;
     return node;
 }
 
 static struct parse_result* make_terminal_node_result(struct token token) {
-    struct parse_result* result = malloc(sizeof(struct parse_result *));
+    struct parse_result* result = malloc(sizeof(struct parse_result));
 
     result->is_error = 0;
     result->node = make_terminal_node(token);
@@ -241,6 +256,9 @@ static struct parse_result* parse_primary_expression(struct parse_state *state) 
     switch(tok.token_type) {
     case OPEN_PAREN:
         result = parse_comma(state);
+        if (result->is_error) {
+            return result;
+        }
         tok = get_next_parse_token(state);
         if (tok.token_type != CLOSE_PAREN) {
             free_result_tree(result);
@@ -263,6 +281,10 @@ static struct parse_result* parse_primary_expression(struct parse_state *state) 
         case OPEN_BRACKET:
         {
             struct parse_result* right_result = parse_comma(state);
+            if (right_result->is_error) {
+                free_result_tree(result);
+                return right_result;
+            }
             enum token_type close = closer(tok.token_type);
             tok = get_next_parse_token(state);
             if (tok.token_type != close) {
@@ -273,10 +295,6 @@ static struct parse_result* parse_primary_expression(struct parse_state *state) 
 
             struct parse_tree_node* old_node = result->node;
             free(result);
-            if (right_result->is_error) {
-                free_tree_node(old_node);
-                return right_result;
-            }
             enum token_type op = close == CLOSE_PAREN ? FUNCTION_CALL : SUBSCRIPT;
             result = make_node_result(op, old_node, right_result->node);
             free(right_result);
@@ -363,9 +381,9 @@ static struct parse_result* parse_unop(struct parse_state *state) {
         result = make_node_result(tok.token_type, 0, right_node);
     } else if (tok.token_type == OPEN_PAREN) {
         //handle typecasts via hack
-        tok = get_next_parse_token(state);
-        if (is_type_word(tok)) {
-            char* typename = parse_parenthesized_typename(tok, state);
+        struct token next_tok = get_next_parse_token(state);
+        if (is_type_word(next_tok)) {
+            char* typename = parse_parenthesized_typename(next_tok, state);
             if (!typename) {
                 return error("Found EOF when parsing (assumed) typecast");
             }
@@ -379,16 +397,12 @@ static struct parse_result* parse_unop(struct parse_state *state) {
             result = make_node_result(TYPECAST, 0, right_node);
             result->node->text = typename;
         } else {
+            push_back(state, next_tok);
             push_back(state, tok);
             //handle parenthesized expression
-            result = parse_comma(state);
+            result = parse_primary_expression(state);
             if (result->is_error) {
                 return result;
-            }
-            tok = get_next_parse_token(state);
-            if (tok.token_type != CLOSE_PAREN) {
-                free_result_tree(result);
-                return error("Missing ) parsing parenthesized expression");
             }
         }
     } else {
@@ -438,9 +452,7 @@ static struct parse_result* parse_binop(struct parse_state *state, int level) {
             push_back(state, tok);
             return result;
         }
-        struct parse_result *right_result;
-        right_result = parse_binop(state, level + 1);
-
+        struct parse_result *right_result = parse_binop(state, level + 1);
         if (right_result->is_error) {
             return right_result;
         }
@@ -546,7 +558,10 @@ static struct parse_result* parse_comma(struct parse_state *state) {
             free_result_tree(result);
             return right_result;
         }
-        result = make_node_result(COMMA, result->node, right_result->node);
+        struct parse_tree_node* left_node = result->node;
+        free(result);
+        result = make_node_result(COMMA, left_node, right_result->node);
+        free(right_result);
     }
 }
 
@@ -554,6 +569,9 @@ struct parse_result* parse(const char* string) {
     lex_buf lex_buf = start_lex(string);
     struct parse_state state = make_parse_state(&lex_buf);
     struct parse_result* result = parse_comma(&state);
+    if (result->is_error) {
+        return result;
+    }
     struct token tok = get_next_parse_token(&state);
     if (tok.token_type != END_OF_EXPRESSION) {
         free_result_tree(result);
@@ -608,16 +626,6 @@ char* write_tree_to_string(struct parse_tree_node* node, char* buf) {
         break;
     case LITERAL_OR_ID:
         buf += sprintf(buf, "%s", node->text);
-        break;
-    case DOT:
-        buf = write_tree_to_string(node->left_child, buf);
-        buf += sprintf(buf, ".");
-        buf = write_tree_to_string(node->right_child, buf);
-        break;
-    case ARROW:
-        buf = write_tree_to_string(node->left_child, buf);
-        buf += sprintf(buf, "->");
-        buf = write_tree_to_string(node->right_child, buf);
         break;
     default:
         buf += sprintf(buf, "(");
