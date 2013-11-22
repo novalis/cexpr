@@ -92,6 +92,7 @@ void add_child_token_rule(struct token_rule* rule, const char* text,
 struct token_rule* make_token_rules(struct token_spec* token_spec) {
     struct token_rule* rule = malloc(sizeof(struct token_rule));
 
+    rule->token_type = 0;
     rule->children = calloc (256, sizeof(struct token_rule));
     while (*token_spec->text) {
         unsigned char c = token_spec->text[0];

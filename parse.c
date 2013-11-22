@@ -97,10 +97,10 @@ static void free_result_tree(struct parse_result *result) {
 }
 
 static struct parse_tree_node* make_node(enum token_type op, 
-                                             struct parse_tree_node* left, 
-                                             struct parse_tree_node* right) {
+                                         struct parse_tree_node* left, 
+                                         struct parse_tree_node* right) {
 
-    struct parse_tree_node* node = calloc(1, sizeof(struct parse_tree_node));
+    struct parse_tree_node* node = calloc(1, sizeof(*left));
 
     node->op = op;
     node->left_child = left;
