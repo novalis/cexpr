@@ -5,7 +5,6 @@ struct walker_layout_rules {
     double sibling_separation;
     double subtree_separation;
     double level_separation;
-    double char_width;
 };
 
 /*
@@ -14,6 +13,7 @@ struct walker_layout_rules {
   algorithm.
  */
 struct label {
+    struct label* parent;
     struct label* prev_sibling;
     struct label* next_sibling;
     struct label* first_child;
@@ -27,10 +27,9 @@ struct label {
     double change;
     double shift;
 
-    struct label* parent;
     char* text;
-    int len;
 
+    double width;
     double xcoord;
     double ycoord;
     double modifier;

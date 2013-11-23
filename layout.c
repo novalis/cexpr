@@ -7,7 +7,7 @@ Algorithm from:
 Improving Walker's Algorithm to run in Linear Time
 Christoph Buchheim, Michael Ju"nger, Sebastian Leipert, 2002
 
-(with a slight modification for variable-length node sizes)
+(with a slight modification for variable-width nodes)
 */
 
 struct layout_ctx {
@@ -70,10 +70,6 @@ static struct label* next_right(struct label *node) {
     return node->thread;
 }
 
-static double width(struct layout_ctx* ctx, struct label *node) {
-    return (node->len + 2) * ctx->rules->char_width;
-}
-
 static double spacing(struct layout_ctx* ctx, struct label *node, 
                     struct label *left, bool siblings) {
     double separation;
@@ -81,7 +77,7 @@ static double spacing(struct layout_ctx* ctx, struct label *node,
         separation = ctx->rules->sibling_separation;
     else
         separation = ctx->rules->subtree_separation;
-    return separation + 0.5 * (width(ctx, node) + width(ctx, left));
+    return separation + 0.5 * (node->width + left->width);
 }
 
 static struct label* apportion(struct layout_ctx* ctx, struct label* node, 
@@ -202,6 +198,10 @@ int get_max_depth(struct label *node) {
     return depth + 1;
 }
 
+/*
+  Lay out a tree using Walker/Buchheim's layout algorithm.  The tree
+  is rooted at node->xcoord, node->ycoord
+ */
 void walker_layout(struct label *node, struct walker_layout_rules* rules) {
     if (!node) {
         return;
@@ -212,12 +212,10 @@ void walker_layout(struct label *node, struct walker_layout_rules* rules) {
     ctx.prev_node_at_level = calloc(get_max_depth(node), sizeof(node));
     ctx.rules = rules;
 
-    first_walk(&ctx, node);
-
-    //FIXME: get this from rules
-    ctx.x_top_adjustment = 500;
+    ctx.x_top_adjustment = node->xcoord;
     ctx.y_top_adjustment = node->ycoord;
 
+    first_walk(&ctx, node);
     second_walk(&ctx, node, 0, -node->xcoord);
 
 }

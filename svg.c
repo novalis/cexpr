@@ -91,14 +91,13 @@ struct label* make_label(struct parse_tree_node* node,
         break;
     case FUNCTION_CALL:
         //fixme: we really want to un-commafy this
-        label->text = malloc(strlen(node->text) + 3);
-        sprintf(label->text, "%s()", node->text);
+        label->text = strdup("function call");
         break;
     default:
         label->text = strdup(token_names[node->op]);
         break;
     }
-    label->len = strlen(label->text);
+    label->width = (strlen(label->text) + 2) * CHAR_WIDTH;
     label->xcoord = 500;
     label->ycoord = 0;
     label->modifier = 0;
@@ -173,12 +172,12 @@ char* tree_to_svg(struct label* tree) {
     struct label* label = tree;
     do {
 
-        double width = CHAR_WIDTH * (label->len + 2);
+        double width = label->width;
         double x = label->xcoord - width / 2;
         double y = label->ycoord;
 
         if (label->parent) {
-            double parent_width = CHAR_WIDTH * (label->parent->len + 2);
+            double parent_width = label->parent->width;
             double parent_x = label->parent->xcoord - parent_width / 2;
             double parent_y = label->parent->ycoord;
 
@@ -233,7 +232,6 @@ char* parse_tree_to_svg(struct parse_tree_node* node) {
     rules.sibling_separation = 10;
     rules.subtree_separation = 20;
     rules.level_separation = 30;
-    rules.char_width = CHAR_WIDTH;
     walker_layout(label, &rules);
 
     char* svg = tree_to_svg(label);
