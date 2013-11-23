@@ -120,6 +120,17 @@ lex_buf start_lex(const char* expr) {
     return buf;
 }
 
+static const char* parse_literal_or_id(const char* pos, struct token* token) {
+    token->token_type = LITERAL_OR_ID;
+    const char *start = pos;
+    //todo: tighten up this parsing
+    while (*pos && (isalnum(*pos) || *pos == '_' || *pos == '.')) {
+        pos++;
+    }
+    token->token_value = strndup(start, pos - start);
+    return pos;
+}
+
 struct token get_next_token(lex_buf* buf) {
     const char* pos = buf->pos;
 
@@ -131,7 +142,18 @@ struct token get_next_token(lex_buf* buf) {
         while (rule->children && rule->children[(unsigned char)*pos].token_type) {
             rule = rule->children + (unsigned char)*pos++;
         }
-        if (rule->token_type == START_COMMENT) {
+        if (rule->token_type == DOT) {
+            //this might be a.b or it might be .1
+            //to tell, we'll look-ahead by one 
+            char nextc = *(pos+1);
+            if (nextc < '0' || nextc > '9') {
+                token.token_type = rule->token_type;
+                goto done;
+            } else {
+                pos = parse_literal_or_id(pos, &token);
+                goto done;
+            }
+        } else if (rule->token_type == START_COMMENT) {
             while (*pos) {
                 char c = *pos++;
                 if (c == '*') {
@@ -178,12 +200,7 @@ struct token get_next_token(lex_buf* buf) {
                         pos += 6;
                         goto done;
                 } else {
-                    token.token_type = LITERAL_OR_ID;
-                    const char *start = pos;
-                    while (*pos && (isalnum(*pos) || *pos == '_')) {
-                        pos++;
-                    }
-                    token.token_value = strndup(start, pos - start);
+                    pos = parse_literal_or_id(pos, &token);
                     goto done;
                 }
                 break;
