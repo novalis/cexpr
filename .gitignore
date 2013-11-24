@@ -3,3 +3,5 @@
 a.out
 core
 *.h.gch
+expr_parse
+expr.cgi
