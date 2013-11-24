@@ -1,0 +1,26 @@
+One day I thought, "I'm having a hard time reading these C
+expressions, because I haven't internalized C's relatively complex
+rules of precedence.  I'll just write a program to parse them for me.
+I'll write it in C, so that by using the language, I can learn it
+better."
+
+Once I started writing it, I realized that I would have to test it, so
+I would have to learn the precedence rules well enough to write
+correct tests.  So my new hope was to write a Wittgensteinian program:
+
+"My propositions serve as elucidations in the following way: anyone
+who understands me eventually recognizes them as nonsensical, when he
+has used them - as steps - to climb beyond them. He must, so to speak,
+throw away the ladder after he has climbed up it."
+
+I'm still not 100% confident on some of the rules, but at least now
+I have a tool.  And you can try it out too at:
+http://novalis.org/parse_c_expressions.html
+
+This package includes the following tools:
+
+expr.cgi: a CGI script that accepts a single variable, expr, via HTTP
+GET, and returns a SVG of the parse tree.
+
+The command-line program expr_parse, which takes an expression as an
+argument, and prints a fully-parenthesized version of the expression.
