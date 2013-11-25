@@ -4,14 +4,17 @@
 
 struct lex_test {
     char* text;
-    enum token_type types[5];
+    enum token_type types[6];
 };
-
 
 static struct lex_test tests[] = {
     {"", {END_OF_EXPRESSION}},
     {"*", {STAR, END_OF_EXPRESSION}},
     {"*=", {STAR_EQUAL, END_OF_EXPRESSION}},
+    {"0x17", {LITERAL_OR_ID, END_OF_EXPRESSION}},
+    {"0x17.fp1", {LITERAL_OR_ID, END_OF_EXPRESSION}},
+    {"071", {LITERAL_OR_ID, END_OF_EXPRESSION}},
+    {"09", {BOGUS, END_OF_EXPRESSION}},
     {"morx*=17", {LITERAL_OR_ID, STAR_EQUAL, LITERAL_OR_ID, END_OF_EXPRESSION}},
     {"sizeof int", {SIZEOF, LITERAL_OR_ID, END_OF_EXPRESSION}},
     {"sizeof_int", {LITERAL_OR_ID, END_OF_EXPRESSION}},
@@ -23,14 +26,18 @@ static struct lex_test tests[] = {
     {"a\001", {LITERAL_OR_ID, BOGUS, END_OF_EXPRESSION}},
     {"\"a\\001\"", {LITERAL_OR_ID, END_OF_EXPRESSION}},
     {"\"a\"/*b*/+c", {LITERAL_OR_ID, PLUS, LITERAL_OR_ID, END_OF_EXPRESSION}},
+    {"a.b", {LITERAL_OR_ID, DOT, LITERAL_OR_ID, END_OF_EXPRESSION}},
+    {"(a0.b)", {OPEN_PAREN, LITERAL_OR_ID, DOT, LITERAL_OR_ID, CLOSE_PAREN, END_OF_EXPRESSION}},
     {0, {0}}
 };
 
-int assert_token(lex_buf* buf, enum token_type expected_type, const char* expected_value) {
+int assert_token(const char* test, lex_buf* buf, enum token_type expected_type,
+                 const char* expected_value) {
+
     struct token token = get_next_token(buf);
     if (token.token_type != expected_type) {
-        printf("Literal test failed: expected type %s but got %s\n", 
-               token_names[expected_type], token_names[token.token_type]);
+        printf("Literal test %s failed: expected type %s but got %s\n", 
+               test, token_names[expected_type], token_names[token.token_type]);
         return 1;
     }
     if (expected_value) {
@@ -52,35 +59,39 @@ int test_literals() {
     lex_buf buf;
     int failures = 0;
 
-    buf = start_lex("\"a\001\\x\\\"\"");
+    const char* teststr = "\"a\001\\x\\\"\"";
+    buf = start_lex(teststr);
 
-    failures += assert_token(&buf, LITERAL_OR_ID, "\"a\001\\x\\\"\"");
-    failures += assert_token(&buf, END_OF_EXPRESSION, 0);
+    failures += assert_token(teststr, &buf, LITERAL_OR_ID, "\"a\001\\x\\\"\"");
+    failures += assert_token(teststr, &buf, END_OF_EXPRESSION, 0);
 
-    buf = start_lex("\"a\001\\x\\\"\"*");
+    teststr = "\"a\001\\x\\\"\"*";
+    buf = start_lex(teststr);
 
-    failures += assert_token(&buf, LITERAL_OR_ID, "\"a\001\\x\\\"\"");
-    failures += assert_token(&buf, STAR, 0);
-    failures += assert_token(&buf, END_OF_EXPRESSION, 0);
+    failures += assert_token(teststr, &buf, LITERAL_OR_ID, "\"a\001\\x\\\"\"");
+    failures += assert_token(teststr, &buf, STAR, 0);
+    failures += assert_token(teststr, &buf, END_OF_EXPRESSION, 0);
 
-    buf = start_lex("\"a\001\\x\\\"\"*''");
+    teststr = "\"a\001\\x\\\"\"*''";
+    buf = start_lex(teststr);
 
-    failures += assert_token(&buf, LITERAL_OR_ID, "\"a\001\\x\\\"\"");
-    failures += assert_token(&buf, STAR, 0);
-    failures += assert_token(&buf, LITERAL_OR_ID, "''");
-    failures += assert_token(&buf, END_OF_EXPRESSION, 0);
+    failures += assert_token(teststr, &buf, LITERAL_OR_ID, "\"a\001\\x\\\"\"");
+    failures += assert_token(teststr, &buf, STAR, 0);
+    failures += assert_token(teststr, &buf, LITERAL_OR_ID, "''");
+    failures += assert_token(teststr, &buf, END_OF_EXPRESSION, 0);
 
-    buf = start_lex("\"a\001\\x\\\"\"*'\\''");
+    teststr = "\"a\001\\x\\\"\"*'\\''";
+    buf = start_lex(teststr);
 
-    failures += assert_token(&buf, LITERAL_OR_ID, "\"a\001\\x\\\"\"");
-    failures += assert_token(&buf, STAR, 0);
-    failures += assert_token(&buf, LITERAL_OR_ID, "'\\''");
-    failures += assert_token(&buf, END_OF_EXPRESSION, 0);
+    failures += assert_token(teststr, &buf, LITERAL_OR_ID, "\"a\001\\x\\\"\"");
+    failures += assert_token(teststr, &buf, STAR, 0);
+    failures += assert_token(teststr, &buf, LITERAL_OR_ID, "'\\''");
+    failures += assert_token(teststr, &buf, END_OF_EXPRESSION, 0);
 
     return failures;
 }
 
-int main(int argc, char **argv) {
+int main() {
     int i = 0;
     int failures = test_literals();
     while (tests[i].text) {

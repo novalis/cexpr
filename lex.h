@@ -60,6 +60,8 @@ enum token_type {
     TYPECAST,
     FUNCTION_CALL,
     SUBSCRIPT,
+    REFERENCE,
+    DEREFERENCE,
 
     /* not actually ever returned, but needed for correct lexing */
     START_COMMENT,

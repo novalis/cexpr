@@ -4,6 +4,7 @@
 #include <string.h>
 #include <stdlib.h>
 #include <stdio.h>
+#include <stdbool.h>
 
 #include "lex.h"
 
@@ -13,8 +14,9 @@ const char *token_names[] = {
     "&","|","*","-","+","/","<<",">>","!=","%=","^=",
     "&=","|=","*=","-=","+=","/=","<<=",">>=","->",".",
     "=","==","<=",">=","<",">","&&","||","++","--","?",
-    ":","sizeof",",","~","(typecast)",
-    "(function call)", "subscript", "/*", "bogus", "eof"
+    ":","sizeof",",","~","(typecast)", "(function call)",
+    "subscript", "reference", "dereference", "/*",
+    "bogus", "eof"
 };
 
 struct token_spec {
@@ -102,7 +104,7 @@ struct token_rule* make_token_rules(struct token_spec* token_spec) {
         const char* text = token_spec->text;
         token_spec ++;
         while (*text == *token_spec->text) {
-            add_child_token_rule(rule, token_spec->text, 
+            add_child_token_rule(rule, token_spec->text,
                                  token_spec->token_type);
             token_spec ++;
         }
@@ -120,12 +122,129 @@ lex_buf start_lex(const char* expr) {
     return buf;
 }
 
-static const char* parse_literal_or_id(const char* pos, struct token* token) {
+static void read_integer_literal(const char** pos_ref) {
+    const char* pos = *pos_ref;
+    char c;
+    while ((c = *pos)) {
+        if (c < '0' || c > '9') {
+            break;
+        }
+        pos++;
+    }
+
+    *pos_ref = pos;
+}
+
+static bool read_float(const char** pos_ref) {
+    char c;
+    bool dot_seen = false;
+    bool exp_seen = false;
+    const char* pos = *pos_ref;
+    while ((c = *pos)) {
+        if (c == '.') {
+            if (dot_seen || exp_seen) {
+                *pos_ref = pos;
+                return false;
+            }
+            dot_seen = true;
+        } else if (c == 'E' || c == 'e') {
+            if (exp_seen) {
+                *pos_ref = pos;
+                return false;
+            }
+            exp_seen = true;
+        } else if (c < '0' || c > '9') {
+            break;
+        }
+        pos++;
+    }
+
+    *pos_ref = pos;
+    return true;
+}
+
+static bool check_octal(const char* start, const char* end) {
+    if (*start != '0') {
+        return true;
+    }
+    for (const char* c = start; c != end; ++c) {
+        if (*c == '.' || *c == 'E' || *c == 'e') {
+            //floats aren't octal
+            return true;
+        }
+        if (*c == '8' || *c == '9') {
+            return false;
+        }
+    }
+    return true;
+}
+
+static bool read_hex_literal(const char** pos_ref) {
+    char c;
+    bool dot_seen = false;
+    const char* pos = *pos_ref;
+    while ((c = *pos)) {
+        if ((c < '0' || c > '9') && (c < 'A' || c > 'F') && (c < 'a' || c > 'f')) {
+            if (c == '.') {
+                if (dot_seen) {
+                    *pos_ref = pos;
+                    return false;
+                }
+                dot_seen = true;
+                pos ++;
+            } else {
+                break;
+            }
+        } else {
+            pos ++;
+        }
+    }
+    if (dot_seen) {
+        if (*pos != 'p') {
+            *pos_ref = pos;
+            return false;
+        }
+        pos ++;
+        read_integer_literal(&pos);
+    }
+    *pos_ref = pos;
+    return true;
+}
+
+
+static const char* read_literal_or_id(const char* pos, struct token* token) {
     token->token_type = LITERAL_OR_ID;
     const char *start = pos;
-    //todo: tighten up this parsing
-    while (*pos && (isalnum(*pos) || *pos == '_' || *pos == '.')) {
-        pos++;
+    switch (*start) {
+    case '0':
+        //handle 0x literals
+        if (start[1] == 'x' || start[1] == 'X') {
+            pos += 2;
+            bool ok = read_hex_literal(&pos);
+            if (!ok) {
+                token->token_type = BOGUS;
+                return pos;
+            }
+        } else {
+            bool ok = read_float(&pos);
+            if (!ok || !check_octal(start, pos)) {
+                token->token_type = BOGUS;
+                return pos;
+            }
+        }
+        break;
+    case '1': case '2': case '3': case '4': case '5': case '6': case '7': case '8': case '9': {
+        bool ok = read_float(&pos);
+        if (!ok) {
+            token->token_type = BOGUS;
+            return pos;
+        }
+    }
+        break;
+    default:
+        while (*pos && (isalnum(*pos) || *pos == '_')) {
+            pos++;
+        }
     }
     token->token_value = strndup(start, pos - start);
     return pos;
@@ -144,13 +263,13 @@ struct token get_next_token(lex_buf* buf) {
         }
         if (rule->token_type == DOT) {
             //this might be a.b or it might be .1
-            //to tell, we'll look-ahead by one 
+            //to tell, we'll look-ahead by one
             char nextc = *(pos+1);
             if (nextc < '0' || nextc > '9') {
                 token.token_type = rule->token_type;
                 goto done;
             } else {
-                pos = parse_literal_or_id(pos, &token);
+                pos = read_literal_or_id(pos, &token);
                 goto done;
             }
         } else if (rule->token_type == START_COMMENT) {
@@ -193,14 +312,14 @@ struct token get_next_token(lex_buf* buf) {
             }
             case '_': case 'A': case 'a': case 'B': case 'b': case 'C': case 'c': case 'D': case 'd': case 'E': case 'e': case 'F': case 'f': case 'G': case 'g': case 'H': case 'h': case 'I': case 'i': case 'J': case 'j': case 'K': case 'k': case 'L': case 'l': case 'M': case 'm': case 'N': case 'n': case 'O': case 'o': case 'P': case 'p': case 'Q': case 'q': case 'R': case 'r': case 'S': case 's': case 'T': case 't': case 'U': case 'u': case 'V': case 'v': case 'W': case 'w': case 'X': case 'x': case 'Y': case 'y': case 'Z': case 'z': case '0': case '1': case '2': case '3': case '4': case '5': case '6': case '7': case '8': case '9':
 
-                if (strncmp(pos, "sizeof", 6) == 0 && 
-                    !isalnum(pos[6]) && 
+                if (strncmp(pos, "sizeof", 6) == 0 &&
+                    !isalnum(pos[6]) &&
                     pos[6] != '_') {
                         token.token_type = SIZEOF;
                         pos += 6;
                         goto done;
                 } else {
-                    pos = parse_literal_or_id(pos, &token);
+                    pos = read_literal_or_id(pos, &token);
                     goto done;
                 }
                 break;

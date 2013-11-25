@@ -23,14 +23,14 @@ struct testspec specs[] = {
 
     {"(float)5", "((float)5)"},
 
-    {"*(int *)p += 5", "((*((int *)p))+=5)"},
-    {"*(int *)p += -5", "((*((int *)p))+=(-5))"},
+    {"*(int *)p += 5", "(*(((int *)p))+=5)"},
+    {"*(int *)p += -5", "(*(((int *)p))+=(-5))"},
 
-    {"*&a", "(*(&a))"},
-    {"*a(b)", "(*a(b))"},
+    {"*&a", "*(&(a))"},
+    {"*a(b)", "*(a(b))"},
 
-    {"*a(-*b,c,(d))", "(*a((-(*b)),c,d))"},
-    {"*a(-*b,c,(d))", "(*a((-(*b)),c,d))"},
+    {"*a(-*b,c,(d))", "*(a((-*(b)),c,d))"},
+    {"*a(-*b,c,(d))", "*(a((-*(b)),c,d))"},
 
     {"a+sizeof(unsigned int*)", "(a+sizeof(unsigned int *))"},
     {"a+sizeof b", "(a+sizeof(b))"},
@@ -40,15 +40,15 @@ struct testspec specs[] = {
     {"t.a.b", "((t.a).b)"},
     {"t->a.b->c", "(((t->a).b)->c)"},
 
-    {"*a+5", "((*a)+5)"},
-    {"*t.a", "(*(t.a))"},
+    {"*a+5", "(*(a)+5)"},
+    {"*t.a", "*((t.a))"},
 
-    {"(*t).a", "((*t).a)"},
+    {"(*t).a", "(*(t).a)"},
 
     {0, 0}
 };
 
-int main(int argc, char** argv) {
+int main() {
     int bad = 0;
     for (struct testspec* spec = specs; spec->input; spec++) {
         int len = strlen(spec->input);

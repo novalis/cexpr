@@ -378,7 +378,19 @@ static struct parse_result* parse_unop(struct parse_state *state) {
         }
         struct parse_tree_node* right_node = right_result->node;
         free(right_result);
-        result = make_node_result(tok.token_type, 0, right_node);
+        enum token_type token_type;
+        switch (tok.token_type) {
+        case STAR:
+            token_type = DEREFERENCE;
+            break;
+        case AMPERSAND:
+            token_type = REFERENCE;
+            break;
+        default:
+            token_type = tok.token_type;
+            break;
+        }
+        result = make_node_result(token_type, 0, right_node);
     } else if (tok.token_type == OPEN_PAREN) {
         //handle typecasts via hack
         struct token next_tok = get_next_parse_token(state);
@@ -587,6 +599,20 @@ struct parse_result* parse(const char* string) {
  */
 char* write_tree_to_string(struct parse_tree_node* node, char* buf) {
     switch (node->op) {
+    case DEREFERENCE:
+        assert (node->right_child);
+        buf += sprintf(buf, "*(");
+        buf = write_tree_to_string(node->right_child, buf);
+        buf += sprintf(buf, ")");
+        break;
+
+    case REFERENCE:
+        assert (node->right_child);
+        buf += sprintf(buf, "&(");
+        buf = write_tree_to_string(node->right_child, buf);
+        buf += sprintf(buf, ")");
+        break;
+
     case COMMA:
         assert (node->left_child);
         assert (node->right_child);
@@ -603,6 +629,7 @@ char* write_tree_to_string(struct parse_tree_node* node, char* buf) {
         buf = write_tree_to_string(node->right_child, buf);
         buf += sprintf(buf, ")");
         break;
+
     case FUNCTION_CALL:
         assert(node->left_child);
         assert(node->right_child);
@@ -624,9 +651,11 @@ char* write_tree_to_string(struct parse_tree_node* node, char* buf) {
     case SIZEOF:
         buf += sprintf(buf, "sizeof(%s)", node->text);
         break;
+
     case LITERAL_OR_ID:
         buf += sprintf(buf, "%s", node->text);
         break;
+
     default:
         buf += sprintf(buf, "(");
         if (node->left_child) {
