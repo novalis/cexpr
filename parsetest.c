@@ -24,13 +24,13 @@ struct testspec specs[] = {
     {"(float)5", "((float)5)"},
 
     {"*(int *)p += 5", "(*(((int *)p))+=5)"},
-    {"*(int *)p += -5", "(*(((int *)p))+=(-5))"},
+    {"*(int *)p += -5", "(*(((int *)p))+=-(5))"},
 
     {"*&a", "*(&(a))"},
     {"*a(b)", "*(a(b))"},
 
-    {"*a(-*b,c,(d))", "*(a((-*(b)),c,d))"},
-    {"*a(-*b,c,(d))", "*(a((-*(b)),c,d))"},
+    {"*a(-*b,c,(d))", "*(a(-(*(b)),c,d))"},
+    {"*a(-*b,c,(d))", "*(a(-(*(b)),c,d))"},
 
     {"a+sizeof(unsigned int*)", "(a+sizeof(unsigned int *))"},
     {"a+sizeof b", "(a+sizeof(b))"},
@@ -45,6 +45,7 @@ struct testspec specs[] = {
 
     {"(*t).a", "(*(t).a)"},
 
+    {"~a", "~(a)"},
     {0, 0}
 };
 

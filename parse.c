@@ -20,7 +20,7 @@ struct parse_state {
 };
 
 static struct parse_tree_node* parse_comma(struct parse_state *state);
-
+static struct parse_tree_node* parse_assignop(struct parse_state *state);
 
 static struct token get_next_parse_token(struct parse_state* state) {
 
@@ -87,13 +87,13 @@ static void free_tree_node(struct parse_tree_node *node) {
         free((void*)node->text);
         node->text = 0;
     }
-    if(node->left_child) {
-        free_tree_node(node->left_child);
-        node->left_child = 0;
+    if (node->first_child) {
+        free_tree_node(node->first_child);
+        node->first_child = 0;
     }
-    if(node->right_child) {
-        free_tree_node(node->right_child);
-        node->right_child = 0;
+    if (node->next_sibling) {
+        free_tree_node(node->next_sibling);
+        node->next_sibling = 0;
     }
 }
 
@@ -121,11 +121,13 @@ static struct parse_tree_node* node_alloc(struct parse_state* state) {
         state->nodelist = realloc(state->nodelist, state->nodes_allocated * sizeof(struct parse_state));
     }
     struct parse_tree_node* new_node = malloc(sizeof(struct parse_tree_node));
+    new_node->first_child = new_node->next_sibling = 0;
+    new_node->text = 0;
     state->nodelist[state->nodes_used++] = new_node;
     return new_node;
 }
 
-static struct parse_tree_node* make_node(struct parse_state* state,
+static struct parse_tree_node* make_binary_node(struct parse_state* state,
                                          enum token_type op,
                                          struct parse_tree_node* left, 
                                          struct parse_tree_node* right) {
@@ -133,8 +135,8 @@ static struct parse_tree_node* make_node(struct parse_state* state,
     struct parse_tree_node* node = node_alloc(state);
 
     node->op = op;
-    node->left_child = left;
-    node->right_child = right;
+    node->first_child = left;
+    left->next_sibling = right;
     return node;
 }
 
@@ -144,7 +146,6 @@ static struct parse_tree_node* make_terminal_node(struct parse_state* state,
 
     node->op = token.token_type;
     node->text = token.token_value;
-    node->left_child = node->right_child = 0;
     return node;
 }
 
@@ -251,16 +252,6 @@ static char* append_token(char* existing, struct token token) {
 
 }
 
-static enum token_type closer(enum token_type opener) {
-    if (opener == OPEN_PAREN) {
-        return CLOSE_PAREN;
-    } else if (opener == OPEN_BRACKET) {
-        return CLOSE_BRACKET;
-    } else {
-        return -1;
-    }
-}
-
 /* () [] . -> expr++ expr--	 */
 static struct parse_tree_node* parse_primary_expression(struct parse_state *state) {
     struct token tok = get_next_parse_token(state);
@@ -290,24 +281,55 @@ static struct parse_tree_node* parse_primary_expression(struct parse_state *stat
     while (more) {
         tok = get_next_parse_token(state);
         switch(tok.token_type) {
-        case OPEN_PAREN:
+
         case OPEN_BRACKET:
         {
             struct parse_tree_node* right_node = parse_comma(state);
             if (!right_node) {
                 return 0;
             }
-            enum token_type close = closer(tok.token_type);
+
             tok = get_next_parse_token(state);
-            if (tok.token_type != close) {
-                error(state, "Missing %s", token_names[close]);
+            if (tok.token_type != CLOSE_BRACKET) {
+                error(state, "Missing ]");
                 return 0;
             }
 
-            enum token_type op = close == CLOSE_PAREN ? FUNCTION_CALL : SUBSCRIPT;
-            node = make_node(state, op, node, right_node);
-            break;
+            node = make_binary_node(state, SUBSCRIPT, node, right_node);
         }
+        break;
+        case OPEN_PAREN:
+        {
+            struct parse_tree_node* prev_child = node;
+            node = make_binary_node(state, FUNCTION_CALL, node, 0);
+            while (1) {
+                tok = get_next_parse_token(state);
+
+                struct parse_tree_node* next_node;
+                if (tok.token_type == OPEN_PAREN) {
+                    push_back(state, tok);
+                    next_node = parse_primary_expression(state);
+                } else if (tok.token_type == CLOSE_PAREN) {
+                    break;
+                } else {
+                    push_back(state, tok);
+                    next_node = parse_assignop(state);
+                }
+
+                tok = get_next_parse_token(state);
+                if (tok.token_type != COMMA) {
+                    push_back(state, tok);
+                }
+
+                if (next_node == 0) {
+                    error(state, "Missing ) when parsing function call");
+                    return 0;
+                }
+                prev_child->next_sibling = next_node;
+                prev_child = next_node;
+            }
+        }
+        break;
         case ARROW:
         case DOT:
         {
@@ -317,13 +339,13 @@ static struct parse_tree_node* parse_primary_expression(struct parse_state *stat
                 error(state, "expected identifier before '%s' token",
                       token_names[tok.token_type]);
             }
-            node = make_node(state, op, node, make_terminal_node(state, tok));
+            node = make_binary_node(state, op, node, make_terminal_node(state, tok));
             break;
         }
         case DOUBLE_PLUS:
         case DOUBLE_MINUS:
         {
-            node = make_node(state, tok.token_type, node, 0);
+            node = make_binary_node(state, tok.token_type, node, 0);
             break;
         }
 
@@ -359,6 +381,7 @@ static struct parse_tree_node* parse_unop(struct parse_state *state) {
 
     struct token tok = get_next_parse_token(state);
     if (tok.token_type == SIZEOF) {
+        struct token sizeof_tok = tok;
         tok = get_next_parse_token(state);
         if (tok.token_type == OPEN_PAREN) {
             //sizeof(typename)
@@ -368,17 +391,17 @@ static struct parse_tree_node* parse_unop(struct parse_state *state) {
                 error(state, "Found EOF when parsing (assumed) typecast");
                 return 0;
             }
-            node = make_node(state, SIZEOF, 0, 0);
+            node = make_terminal_node(state, sizeof_tok);
             node->text = typename;
         } else {
             //sizeof var
-            node = make_node(state, SIZEOF, 0, 0);
+            node = make_terminal_node(state, sizeof_tok);
             node->text = strdup(tok.token_value);
         }
 
     } else if (is_unop(tok)) {
-        struct parse_tree_node* right_node = parse_unop(state);
-        if (!right_node) {
+        struct parse_tree_node* child_node = parse_unop(state);
+        if (!child_node) {
             return 0;
         }
         enum token_type token_type;
@@ -389,11 +412,14 @@ static struct parse_tree_node* parse_unop(struct parse_state *state) {
         case AMPERSAND:
             token_type = REFERENCE;
             break;
+        case MINUS:
+            token_type = UNARY_MINUS;
+            break;
         default:
             token_type = tok.token_type;
             break;
         }
-        node = make_node(state, token_type, 0, right_node);
+        node = make_binary_node(state, token_type, child_node, 0);
     } else if (tok.token_type == OPEN_PAREN) {
         //handle typecasts via hack
         struct token next_tok = get_next_parse_token(state);
@@ -404,11 +430,11 @@ static struct parse_tree_node* parse_unop(struct parse_state *state) {
                 return 0;
             }
 
-            struct parse_tree_node* right_node = parse_unop(state);
-            if (!right_node) {
+            struct parse_tree_node* child_node = parse_unop(state);
+            if (!child_node) {
                 return 0;
             }
-            node = make_node(state, TYPECAST, 0, right_node);
+            node = make_binary_node(state, TYPECAST, child_node, 0);
             node->text = typename;
         } else {
             push_back(state, next_tok);
@@ -470,7 +496,7 @@ static struct parse_tree_node* parse_binop(struct parse_state *state, int level)
         if (!right_node) {
             return 0;
         }
-        node = make_node(state, tok.token_type, node, right_node);
+        node = make_binary_node(state, tok.token_type, node, right_node);
     }
 }
 
@@ -502,8 +528,8 @@ static struct parse_tree_node* parse_ternop(struct parse_state *state) {
         return 0;
     }
 
-    struct parse_tree_node* new_right = make_node(state, COLON, mid_node, right_node);
-    return make_node(state, QUESTION, left_node, new_right);
+    struct parse_tree_node* new_right = make_binary_node(state, COLON, mid_node, right_node);
+    return make_binary_node(state, QUESTION, left_node, new_right);
 }
 
 static struct parse_tree_node* parse_assignop(struct parse_state *state) {
@@ -523,7 +549,7 @@ static struct parse_tree_node* parse_assignop(struct parse_state *state) {
         return 0;
     }
 
-    node = make_node(state, tok.token_type, node, right_node);
+    node = make_binary_node(state, tok.token_type, node, right_node);
     return node;
 }
 
@@ -547,7 +573,7 @@ static struct parse_tree_node* parse_comma(struct parse_state *state) {
         if (!right_node) {
             return 0;
         }
-        node = make_node(state, COMMA, node, right_node);
+        node = make_binary_node(state, COMMA, node, right_node);
     }
 }
 
@@ -584,51 +610,56 @@ struct parse_result* parse(const char* string) {
 char* write_tree_to_string(struct parse_tree_node* node, char* buf) {
     switch (node->op) {
     case DEREFERENCE:
-        assert (node->right_child);
-        buf += sprintf(buf, "*(");
-        buf = write_tree_to_string(node->right_child, buf);
-        buf += sprintf(buf, ")");
-        break;
-
     case REFERENCE:
-        assert (node->right_child);
-        buf += sprintf(buf, "&(");
-        buf = write_tree_to_string(node->right_child, buf);
+    case UNARY_MINUS:
+    case TILDE:
+        /* unary ops */
+        assert (node->first_child);
+        buf += sprintf(buf, "%s(", token_sigils[node->op]);
+        buf = write_tree_to_string(node->first_child, buf);
         buf += sprintf(buf, ")");
         break;
 
     case COMMA:
-        assert (node->left_child);
-        assert (node->right_child);
+        assert (node->first_child);
+        assert (node->first_child->next_sibling);
 
-        buf = write_tree_to_string(node->left_child, buf);
+        buf = write_tree_to_string(node->first_child, buf);
         buf += sprintf(buf, ",");
-        buf = write_tree_to_string(node->right_child, buf);
+        buf = write_tree_to_string(node->first_child->next_sibling, buf);
         break;
 
     case TYPECAST:
         buf += sprintf(buf, "((%s)", node->text);
-        assert(!node->left_child);
-        assert(node->right_child);
-        buf = write_tree_to_string(node->right_child, buf);
+        assert(node->first_child);
+        assert(!node->first_child->next_sibling);
+        buf = write_tree_to_string(node->first_child, buf);
         buf += sprintf(buf, ")");
         break;
 
     case FUNCTION_CALL:
-        assert(node->left_child);
-        assert(node->right_child);
-        buf = write_tree_to_string(node->left_child, buf);
+    {
+        assert(node->first_child);
+        buf = write_tree_to_string(node->first_child, buf);
         buf += sprintf(buf, "(");
-        buf = write_tree_to_string(node->right_child, buf);
+        struct parse_tree_node* cur = node->first_child->next_sibling;
+        while (cur) {
+            buf = write_tree_to_string(cur, buf);
+            cur = cur->next_sibling;
+            if (cur) {
+                buf += sprintf(buf, ",");
+            }
+        }
         buf += sprintf(buf, ")");
-        break;
+    }
+    break;
 
     case SUBSCRIPT:
-        assert(node->left_child);
-        assert(node->right_child);
-        buf = write_tree_to_string(node->left_child, buf);
+        assert(node->first_child);
+        assert(node->first_child->next_sibling);
+        buf = write_tree_to_string(node->first_child, buf);
         buf += sprintf(buf, "[");
-        buf = write_tree_to_string(node->right_child, buf);
+        buf = write_tree_to_string(node->first_child->next_sibling, buf);
         buf += sprintf(buf, "]");
         break;
 
@@ -642,12 +673,14 @@ char* write_tree_to_string(struct parse_tree_node* node, char* buf) {
 
     default:
         buf += sprintf(buf, "(");
-        if (node->left_child) {
-            buf = write_tree_to_string(node->left_child, buf);
+        if (node->first_child) {
+            buf = write_tree_to_string(node->first_child, buf);
         }
-        buf += sprintf(buf, "%s", token_names[node->op]);
-        if (node->right_child) {
-            buf = write_tree_to_string(node->right_child, buf);
+        buf += sprintf(buf, "%s", token_sigils[node->op]);
+        struct parse_tree_node* cur = node->first_child->next_sibling;
+        while (cur) {
+            buf = write_tree_to_string(cur, buf);
+            cur = cur->next_sibling;
         }
         buf += sprintf(buf, ")");
         break;

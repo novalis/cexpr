@@ -90,7 +90,6 @@ struct label* make_label(struct parse_tree_node* node,
         sprintf(label->text, "(%s)", node->text);
         break;
     case FUNCTION_CALL:
-        //fixme: we really want to un-commafy this
         label->text = strdup("function call");
         break;
     default:
@@ -110,12 +109,14 @@ struct label* get_label_tree(struct parse_tree_node* node,
 
     struct label* label = make_label(node, parent);
 
-    if (node->left_child) {
-        add_child_node(label, get_label_tree(node->left_child, label));
-    }
+    if (node->first_child) {
+        add_child_node(label, get_label_tree(node->first_child, label));
 
-    if (node->right_child) {
-        add_child_node(label, get_label_tree(node->right_child, label));
+        struct parse_tree_node* cur = node->first_child->next_sibling;
+        while (cur) {
+            add_child_node(label, get_label_tree(cur, label));
+            cur = cur->next_sibling;
+        }
     }
 
     return label;

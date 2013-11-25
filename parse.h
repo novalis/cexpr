@@ -8,8 +8,8 @@ struct parse_tree_node;
 struct parse_tree_node {
     enum token_type op;
     const char* text;
-    struct parse_tree_node* left_child;
-    struct parse_tree_node* right_child;
+    struct parse_tree_node* first_child;
+    struct parse_tree_node* next_sibling;
 };
 
 struct parse_result {

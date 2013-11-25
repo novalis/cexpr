@@ -62,6 +62,7 @@ enum token_type {
     SUBSCRIPT,
     REFERENCE,
     DEREFERENCE,
+    UNARY_MINUS,
 
     /* not actually ever returned, but needed for correct lexing */
     START_COMMENT,
@@ -71,6 +72,7 @@ enum token_type {
 };
 
 extern const char* token_names[];
+extern const char* token_sigils[];
 
 struct token {
     enum token_type token_type;
