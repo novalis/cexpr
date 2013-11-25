@@ -89,7 +89,7 @@ struct token_rule {
     enum token_type token_type;
 };
 
-void add_child_token_rule(struct token_rule* rule, const char* text,
+static void add_child_token_rule(struct token_rule* rule, const char* text,
                           enum token_type token_type) {
     unsigned char c = *text;
     if (!c) {
@@ -102,7 +102,7 @@ void add_child_token_rule(struct token_rule* rule, const char* text,
     add_child_token_rule(rule->children + c, text + 1, token_type);
 }
 
-struct token_rule* make_token_rules(struct token_spec* token_spec) {
+static struct token_rule* make_token_rules(struct token_spec* token_spec) {
     struct token_rule* rule = malloc(sizeof(struct token_rule));
 
     rule->token_type = 0;

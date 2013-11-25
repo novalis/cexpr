@@ -13,7 +13,7 @@
 #define BOX_HEIGHT 14.0
 
 
-static const char* svg_header = 
+static const char* svg_header =
 "<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"no\"?>"
 "<svg"
 "   xmlns:rdf=\"http://www.w3.org/1999/02/22-rdf-syntax-ns#\""
@@ -53,7 +53,7 @@ static const char* svg_line =
 static const char* svg_footer = "</svg>";
 
 
-void add_child_node(struct label *parent, struct label *child) {
+static void add_child_node(struct label *parent, struct label *child) {
     struct label* last_child = parent->first_child;
     if (!last_child) {
         parent->first_child = child;
@@ -68,7 +68,7 @@ void add_child_node(struct label *parent, struct label *child) {
     last_child->next_sibling = child;
 }
 
-struct label* make_label(struct parse_tree_node* node, 
+static struct label* make_label(struct parse_tree_node* node,
                          struct label *parent) {
     struct label* label = malloc(sizeof(struct label));
     label->parent = parent;
@@ -103,9 +103,9 @@ struct label* make_label(struct parse_tree_node* node,
     return label;
 }
 
-struct label* get_label_tree(struct parse_tree_node* node, 
+static struct label* get_label_tree(struct parse_tree_node* node,
                              struct label *parent) {
-    //to parse a node, we need to create a label for it, 
+    //to parse a node, we need to create a label for it,
 
     struct label* label = make_label(node, parent);
 
@@ -122,7 +122,7 @@ struct label* get_label_tree(struct parse_tree_node* node,
     return label;
 }
 
-void realloc_if_necessary(char** p, int* allocated, int new_size) {
+static void realloc_if_necessary(char** p, int* allocated, int new_size) {
     if (*allocated > new_size) {
         return;
     }
@@ -137,7 +137,7 @@ struct queue {
     struct queue* next;
 };
 
-struct label* next(struct label* node) {
+static struct label* next(struct label* node) {
     if (node->first_child) {
         return node->first_child;
     }
@@ -156,7 +156,7 @@ static double max(double a, double b) {
     return a > b ? a : b;
 }
 
-char* tree_to_svg(struct label* tree) {
+static char* tree_to_svg(struct label* tree) {
     int allocated = 1024;
     char* svg = malloc(allocated);
 
@@ -211,12 +211,12 @@ char* tree_to_svg(struct label* tree) {
     int needed = strlen(svg_footer);
     realloc_if_necessary(&svg, &allocated, used + needed);
     strcpy(svg + used, svg_footer);
-    used += needed;    
+    used += needed;
 
     return svg;
 }
 
-void free_label_tree(struct label* label) {
+static void free_label_tree(struct label* label) {
     struct label* child = label->first_child;
     while (child) {
         struct label* next_child = child->next_sibling;

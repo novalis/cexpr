@@ -17,7 +17,7 @@ struct layout_ctx {
     struct walker_layout_rules *rules;
 };
 
-struct label* ancestor(struct label* left, struct label* node, struct label* default_ancestor) {
+static struct label* ancestor(struct label* left, struct label* node, struct label* default_ancestor) {
 
     if (left->ancestor->parent == node->parent) {
         return left->ancestor;
@@ -25,7 +25,7 @@ struct label* ancestor(struct label* left, struct label* node, struct label* def
     return default_ancestor;
 }
 
-void execute_shifts(struct label* node) {
+static void execute_shifts(struct label* node) {
     double shift = 0;
     double change = 0;
     //find the rightmost child
@@ -43,7 +43,7 @@ void execute_shifts(struct label* node) {
     }
 }
 
-void move_subtree(struct label* left, struct label* right, double shift) {
+static void move_subtree(struct label* left, struct label* right, double shift) {
     int subtrees = right->number - left->number;
     right->change -= shift / subtrees;
     right->shift += shift;
@@ -185,7 +185,7 @@ static void first_walk(struct layout_ctx* ctx, struct label *node) {
 
 }
 
-int get_max_depth(struct label *node) {
+static int get_max_depth(struct label *node) {
     int depth = 0;
     struct label* child = node->first_child;
     while (child) {

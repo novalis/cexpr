@@ -5,7 +5,7 @@
 #include "parse.h"
 #include "lex.h"
 
-int dump_tree(const char* expr) {
+static int dump_tree(const char* expr) {
 
     struct parse_result* result = parse(expr);
     if (result->is_error) {

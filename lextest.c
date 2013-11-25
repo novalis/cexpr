@@ -31,8 +31,9 @@ static struct lex_test tests[] = {
     {0, {0}}
 };
 
-int assert_token(const char* test, lex_buf* buf, enum token_type expected_type,
-                 const char* expected_value) {
+static int assert_token(const char* test, lex_buf* buf,
+                        enum token_type expected_type,
+                        const char* expected_value) {
 
     struct token token = get_next_token(buf);
     if (token.token_type != expected_type) {
@@ -55,7 +56,7 @@ int assert_token(const char* test, lex_buf* buf, enum token_type expected_type,
     return 0;
 }
 
-int test_literals() {
+static int test_literals() {
     lex_buf buf;
     int failures = 0;
 
