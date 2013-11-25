@@ -8,9 +8,10 @@
 #include <string.h>
 
 
-#define CHAR_WIDTH 7.0
-#define CHAR_HEIGHT 11.0
-#define BOX_HEIGHT 14.0
+#define CHAR_WIDTH 8.4
+#define TEXT_PX 14.0
+#define CHAR_HEIGHT 13.0
+#define BOX_HEIGHT 17.0
 
 
 static const char* svg_header =
@@ -35,7 +36,7 @@ static const char* svg_rect =
 static const char* svg_text =
 "    <text"
 "       xml:space=\"preserve\""
-"       style=\"font-size:12px;color:#000000;fill:#000000;stroke:none;font-family:Courier;\""
+"       style=\"font-size:%fpx;color:#000000;fill:#000000;stroke:none;font-family:Courier;\""
 "       x=\"%f\""
 "       y=\"%f\">"
 "<tspan"
@@ -167,7 +168,7 @@ static char* tree_to_svg(struct label* tree) {
     int rect_len = strlen(svg_rect);
     int text_len = strlen(svg_text);
     int line_len = strlen(svg_line);
-    int buf_size = max(max(rect_len, text_len), line_len) + 4 * 15 + 1;
+    int buf_size = max(max(rect_len, text_len), line_len) + 5 * 15 + 1;
     char svg_buf[buf_size];
 
     struct label* label = tree;
@@ -182,9 +183,8 @@ static char* tree_to_svg(struct label* tree) {
             double parent_x = label->parent->xcoord - parent_width / 2;
             double parent_y = label->parent->ycoord;
 
-            int needed = sprintf(svg_buf, svg_line, x + width / 2, 
-                                 y, 
-                                 parent_x + parent_width / 2, 
+            int needed = sprintf(svg_buf, svg_line, x + width / 2,
+                                 y, parent_x + parent_width / 2,
                                  parent_y + BOX_HEIGHT);
 
             realloc_if_necessary(&svg, &allocated, used + needed);
@@ -200,7 +200,7 @@ static char* tree_to_svg(struct label* tree) {
 
         x += CHAR_WIDTH;
         y += CHAR_HEIGHT;
-        needed = sprintf(svg_buf, svg_text, x, y, x, y, label->text);
+        needed = sprintf(svg_buf, svg_text, TEXT_PX, x, y, x, y, label->text);
         realloc_if_necessary(&svg, &allocated, used + needed);
         strcpy(svg + used, svg_buf);
         used += needed;
