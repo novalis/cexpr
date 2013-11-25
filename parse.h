@@ -24,4 +24,6 @@ struct parse_result* parse(const char* string);
 
 char* write_tree_to_string(struct parse_tree_node* node, char* buf);
 
+void free_result_tree(struct parse_result *result);
+
 #endif
