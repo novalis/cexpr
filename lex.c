@@ -251,7 +251,7 @@ static const char* read_literal_or_id(lex_buf* buf, const char* pos,
             }
         }
         break;
-    case '1': case '2': case '3': case '4': case '5': case '6': case '7': case '8': case '9': {
+    case '1': case '2': case '3': case '4': case '5': case '6': case '7': case '8': case '9': case '.': {
         bool ok = read_float(&pos);
         if (!ok) {
             token->token_type = BOGUS;
@@ -282,14 +282,13 @@ struct token get_next_token(lex_buf* buf) {
         if (rule->token_type == DOT) {
             //this might be a.b or it might be .1
             //to tell, we'll look-ahead by one
-            char nextc = *(pos+1);
+            char nextc = *pos;
             if (nextc < '0' || nextc > '9') {
                 token.token_type = rule->token_type;
-                goto done;
             } else {
-                pos = read_literal_or_id(buf, pos, &token);
-                goto done;
+                pos = read_literal_or_id(buf, pos - 1, &token);
             }
+            goto done;
         } else if (rule->token_type == START_COMMENT) {
             while (*pos) {
                 char c = *pos++;
