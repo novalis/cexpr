@@ -169,6 +169,9 @@ static bool read_float(const char** pos_ref) {
                 *pos_ref = pos;
                 return false;
             }
+            if (pos[1] == '-' || pos[1] == '+') {
+                pos++;
+            }
             exp_seen = true;
         } else if (c < '0' || c > '9') {
             break;
@@ -222,7 +225,12 @@ static bool read_hex_literal(const char** pos_ref) {
             return false;
         }
         pos ++;
+        const char* old_pos = pos;
         read_integer_literal(&pos);
+        if (old_pos == pos) {
+            *pos_ref = pos;
+            return false;
+        }
     }
     *pos_ref = pos;
     return true;
