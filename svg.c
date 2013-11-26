@@ -69,6 +69,39 @@ static void add_child_node(struct label *parent, struct label *child) {
     last_child->next_sibling = child;
 }
 
+static char* xml_escape(const char* str) {
+    int len = 0;
+    for (const char* cur = str; *cur; ++cur) {
+        if (*cur == '&') {
+            /* &amp; */
+            len += 5;
+        } else  if (*cur == '<' || *cur == '>') {
+            /* &lt; */
+            len+=4;
+        } else {
+            len++;
+        }
+    }
+    char* result = malloc(len + 1);
+    char* end = result;
+    for (const char* cur = str; *cur; ++cur) {
+        if (*cur == '&') {
+            strcpy(end, "&amp;");
+            end += 5;
+        } else  if (*cur == '<') {
+            strcpy(end, "&lt;");
+            end += 4;
+        } else  if (*cur == '>') {
+            strcpy(end, "&gt;");
+            end += 4;
+        } else {
+            *end++ = *cur;
+        }
+    }
+    *end = 0;
+    return result;
+}
+
 static struct label* make_label(struct parse_tree_node* node,
                          struct label *parent) {
     struct label* label = malloc(sizeof(struct label));
@@ -98,6 +131,9 @@ static struct label* make_label(struct parse_tree_node* node,
         break;
     }
     label->width = (strlen(label->text) + 2) * CHAR_WIDTH;
+    char* old_text = label->text;
+    label->text = xml_escape(old_text);
+    free(old_text);
     label->xcoord = 500;
     label->ycoord = 0;
     label->modifier = 0;
