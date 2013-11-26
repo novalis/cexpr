@@ -262,7 +262,7 @@ static struct parse_tree_node* parse_primary_expression(struct parse_state *stat
         node = make_terminal_node(state, tok);
         break;
     default:
-        error(state, "Unexpected '%s'", token_names[tok.token_type]);
+        error(state, "Unexpected %s", token_names[tok.token_type]);
         return 0;
     }
 
@@ -322,7 +322,7 @@ static struct parse_tree_node* parse_primary_expression(struct parse_state *stat
                 }
 
                 if (next_node == 0) {
-                    error(state, "Missing ')' while parsing function call");
+                    error(state, "Missing ) while parsing function call");
                     return 0;
                 }
                 prev_child->next_sibling = next_node;
@@ -337,7 +337,7 @@ static struct parse_tree_node* parse_primary_expression(struct parse_state *stat
             tok = get_next_parse_token(state);
             HANDLE_BOGUS_TOKEN(tok);
             if (!match(tok, LITERAL_OR_ID)) {
-                error(state, "Expected identifier before '%s' token",
+                error(state, "Expected identifier before %s token",
                       token_names[tok.token_type]);
                 return 0;
             }
@@ -364,6 +364,8 @@ static char* parse_parenthesized_typename(struct token tok, struct parse_state* 
     //parse until close-paren
     while (tok.token_type != CLOSE_PAREN) {
         if (tok.token_type == END_OF_EXPRESSION) {
+            char* typename = obstack_finish(state->obstack);
+            obstack_free(state->obstack, typename);
             return 0;
         }
         append_token(state->obstack, tok);
@@ -393,7 +395,7 @@ static struct parse_tree_node* parse_unop(struct parse_state *state) {
             HANDLE_BOGUS_TOKEN(tok);
             char* typename = parse_parenthesized_typename(tok, state);
             if (!typename) {
-                error(state, "Missing ) in (assumed) typecast");
+                error(state, "Missing ) in sizeof");
                 return 0;
             }
             node = make_terminal_node(state, sizeof_tok);
@@ -582,7 +584,7 @@ static struct parse_tree_node* parse_comma(struct parse_state *state) {
             return node;
         }
         if (!match(tok, COMMA)) {
-            error(state, "Expected comma, got %s", token_names[tok.token_type]);
+            error(state, "Unexpected %s", token_names[tok.token_type]);
             return 0;
         }
         struct parse_tree_node *right_node = parse_assignop(state);
@@ -622,7 +624,7 @@ struct parse_result* parse(const char* string) {
             result->node = node;
             result->obstack = state.obstack;
         } else {
-            error(&state, "Unexpected '%s' at end of input",
+            error(&state, "Unexpected %s at end of input",
                   token_names[tok.token_type]);
             result->is_error = true;
             result->error_message = state.error_message;

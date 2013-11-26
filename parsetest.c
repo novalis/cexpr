@@ -10,7 +10,6 @@ struct testspec {
 };
 
 struct testspec specs[] = {
-    {"f()", "f()"},
     {"a", "a"},
     {"(a)", "a"},
     {"a+b", "(a+b)"},
@@ -31,7 +30,9 @@ struct testspec specs[] = {
     {"*(int *)p += -5", "(*(((int *)p))+=-(5))"},
 
     {"*&a", "*(&(a))"},
-    {"*a(b)", "*(a(b))"},
+    {"*f(b)", "*(f(b))"},
+
+    {"f()", "f()"},
 
     {"*a(-*b,c,(d))", "*(a(-(*(b)),c,d))"},
     {"*a(-*b,c,(d))", "*(a(-(*(b)),c,d))"},
@@ -50,7 +51,11 @@ struct testspec specs[] = {
     {"(*t).a", "(*(t).a)"},
 
     {"++ a", "++(a)"},
+    {"-- a", "--(a)"},
     {"a++", "(a++)"},
+    {"a--", "(a--)"},
+
+    {"--- a", "--(-(a))"},
 
     {"~a", "~(a)"},
     {"p = 0x17.fp1", "(p=0x17.fp1)"},
@@ -61,15 +66,23 @@ struct testspec specs[] = {
 struct testspec expected_failures[] = {
     {"\001", "Bogus token '\001'"},
     {"(mumble\001", "Bogus token '\001'"},
-    {")", "Unexpected ')'"},
+    {")", "Unexpected )"},
     {"(a", "Missing ) parsing parenthesized expression"},
     {"(unsigned int *", "Missing ) in (assumed) typecast"},
-    {"(unsigned int *)a)", "Unexpected ')' at end of input"},
+    {"--(unsigned int *", "Missing ) in (assumed) typecast"},
+    {"sizeof(int", "Missing ) in sizeof"},
+    {"(unsigned int *)a)", "Unexpected ) at end of input"},
     {"a[", "Missing ] at end of input"},
     {"a[5", "Missing ]"},
-    {"a[5,", "Unexpected 'eof'"},
-    {"f(,", "Missing ')' while parsing function call"},
-    {"a.*", "Expected identifier before '*' token"},
+    {"a[5,", "Unexpected eof"},
+    {"f(,", "Missing ) while parsing function call"},
+    {"a.*", "Expected identifier before * token"},
+    {"-&a.*", "Expected identifier before * token"},
+    {"(int)\001", "Bogus token '\001'"},
+    {"a?b:c?d", "Missing : in ?: ternary op (found eof)"},
+    {"a?b:c?d*", "Unexpected eof"},
+    {"a=*", "Unexpected eof"},
+    {"a 1", "Unexpected literal"},
     {"", "Empty expression"},
     {0, 0}
 };
