@@ -262,8 +262,7 @@ static struct parse_tree_node* parse_primary_expression(struct parse_state *stat
         node = make_terminal_node(state, tok);
         break;
     default:
-        error(state, "Unable to parse primary expression (token type is %s)",
-              token_names[tok.token_type]);
+        error(state, "Unexpected '%s'", token_names[tok.token_type]);
         return 0;
     }
 
@@ -275,7 +274,6 @@ static struct parse_tree_node* parse_primary_expression(struct parse_state *stat
 
         case OPEN_BRACKET:
         {
-
             tok = get_next_parse_token(state);
             push_back(state, tok);
             if (match(tok, END_OF_EXPRESSION)) {
@@ -324,7 +322,7 @@ static struct parse_tree_node* parse_primary_expression(struct parse_state *stat
                 }
 
                 if (next_node == 0) {
-                    error(state, "Missing ) when parsing function call");
+                    error(state, "Missing ')' while parsing function call");
                     return 0;
                 }
                 prev_child->next_sibling = next_node;
@@ -338,9 +336,10 @@ static struct parse_tree_node* parse_primary_expression(struct parse_state *stat
             enum token_type op = tok.token_type;
             tok = get_next_parse_token(state);
             HANDLE_BOGUS_TOKEN(tok);
-            if (tok.token_type != LITERAL_OR_ID) {
-                error(state, "expected identifier before '%s' token",
+            if (!match(tok, LITERAL_OR_ID)) {
+                error(state, "Expected identifier before '%s' token",
                       token_names[tok.token_type]);
+                return 0;
             }
             node = make_binary_node(state, op, node, make_terminal_node(state, tok));
             break;

@@ -10,6 +10,7 @@ struct testspec {
 };
 
 struct testspec specs[] = {
+    {"f()", "f()"},
     {"a", "a"},
     {"(a)", "a"},
     {"a+b", "(a+b)"},
@@ -59,18 +60,22 @@ struct testspec specs[] = {
 
 struct testspec expected_failures[] = {
     {"\001", "Bogus token '\001'"},
+    {"(mumble\001", "Bogus token '\001'"},
+    {")", "Unexpected ')'"},
     {"(a", "Missing ) parsing parenthesized expression"},
     {"(unsigned int *", "Missing ) in (assumed) typecast"},
     {"(unsigned int *)a)", "Unexpected ')' at end of input"},
     {"a[", "Missing ] at end of input"},
     {"a[5", "Missing ]"},
+    {"a[5,", "Unexpected 'eof'"},
+    {"f(,", "Missing ')' while parsing function call"},
+    {"a.*", "Expected identifier before '*' token"},
     {"", "Empty expression"},
     {0, 0}
 };
 
 int test_parse_failures() {
     int bad = 0;
-
     for (struct testspec* spec = expected_failures; spec->input; spec++) {
         struct parse_result* result = parse(spec->input);
         if (result->is_error) {
@@ -99,6 +104,7 @@ int test_parse_failures() {
 
 int main() {
     int bad = 0;
+
     for (struct testspec* spec = specs; spec->input; spec++) {
         int len = strlen(spec->input);
         char* buf = malloc(len * 3 + 1);
