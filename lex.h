@@ -66,6 +66,12 @@ enum token_type {
     DEREFERENCE,
     UNARY_MINUS,
 
+    POSTINCREMENT,
+    POSTDECREMENT,
+
+    PREINCREMENT,
+    PREDECREMENT,
+
     /* not actually ever returned, but needed for correct lexing */
     START_COMMENT,
 

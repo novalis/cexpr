@@ -11,6 +11,7 @@ static struct lex_test tests[] = {
     {"", {END_OF_EXPRESSION}},
     {"*", {STAR, END_OF_EXPRESSION}},
     {"*=", {STAR_EQUAL, END_OF_EXPRESSION}},
+    {"++", {DOUBLE_PLUS, END_OF_EXPRESSION}},
     {"0x17", {LITERAL_OR_ID, END_OF_EXPRESSION}},
     {"0x17.fp1", {LITERAL_OR_ID, END_OF_EXPRESSION}},
     {"071", {LITERAL_OR_ID, END_OF_EXPRESSION}},

@@ -346,11 +346,11 @@ static struct parse_tree_node* parse_primary_expression(struct parse_state *stat
             break;
         }
         case DOUBLE_PLUS:
-        case DOUBLE_MINUS:
-        {
-            node = make_binary_node(state, tok.token_type, node, 0);
+            node = make_binary_node(state, POSTINCREMENT, node, 0);
             break;
-        }
+        case DOUBLE_MINUS:
+            node = make_binary_node(state, POSTDECREMENT, node, 0);
+            break;
         default:
             //not part of a primary expression
             more = false;
@@ -420,6 +420,12 @@ static struct parse_tree_node* parse_unop(struct parse_state *state) {
             break;
         case MINUS:
             token_type = UNARY_MINUS;
+            break;
+        case DOUBLE_PLUS:
+            token_type = PREINCREMENT;
+            break;
+        case DOUBLE_MINUS:
+            token_type = PREDECREMENT;
             break;
         default:
             token_type = tok.token_type;
@@ -640,6 +646,8 @@ char* write_tree_to_string(struct parse_tree_node* node, char* buf) {
     case UNARY_MINUS:
     case TILDE:
     case BANG:
+    case PREINCREMENT:
+    case PREDECREMENT:
         /* unary ops */
         assert (node->first_child);
         buf += sprintf(buf, "%s(", token_sigils[node->op]);

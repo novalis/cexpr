@@ -16,8 +16,8 @@ const char *token_names[] = {
     "&=","|=","*=","-=","+=","/=","<<=",">>=","->",".",
     "=","==","<=",">=","<",">","&&","||","++","--","?",
     ":","sizeof",",","~","(typecast)", "(function call)",
-    "subscript", "reference", "dereference", "-", "/*",
-    "bogus", "eof"
+    "subscript", "reference", "dereference", "-", "expr++",
+    "expr--", "++expr", "--expr", "/*", "bogus", "eof"
 };
 
 const char *token_sigils[] = {
@@ -27,8 +27,8 @@ const char *token_sigils[] = {
     "&=","|=","*=","-=","+=","/=","<<=",">>=","->",".",
     "=","==","<=",">=","<",">","&&","||","++","--","?",
     ":","sizeof",",","~","(typecast)", "(function call)",
-    "subscript", "&", "*", "-", "/*",
-    "bogus", "eof"
+    "subscript", "&", "*", "-", "++", "--", "++", "--",
+    "/*", "bogus", "eof"
 };
 
 struct token_spec {
