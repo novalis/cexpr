@@ -590,6 +590,7 @@ char* write_tree_to_string(struct parse_tree_node* node, char* buf) {
     case REFERENCE:
     case UNARY_MINUS:
     case TILDE:
+    case BANG:
         /* unary ops */
         assert (node->first_child);
         buf += sprintf(buf, "%s(", token_sigils[node->op]);
