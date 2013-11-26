@@ -67,6 +67,7 @@ static int test_literals() {
     failures += assert_token(teststr, &buf, END_OF_EXPRESSION, 0);
 
     teststr = "\"a\001\\x\\\"\"*";
+    done_lex(buf);
     buf = start_lex(teststr);
 
     failures += assert_token(teststr, &buf, LITERAL_OR_ID, "\"a\001\\x\\\"\"");
@@ -74,6 +75,7 @@ static int test_literals() {
     failures += assert_token(teststr, &buf, END_OF_EXPRESSION, 0);
 
     teststr = "\"a\001\\x\\\"\"*''";
+    done_lex(buf);
     buf = start_lex(teststr);
 
     failures += assert_token(teststr, &buf, LITERAL_OR_ID, "\"a\001\\x\\\"\"");
@@ -82,6 +84,7 @@ static int test_literals() {
     failures += assert_token(teststr, &buf, END_OF_EXPRESSION, 0);
 
     teststr = "\"a\001\\x\\\"\"*'\\''";
+    done_lex(buf);
     buf = start_lex(teststr);
 
     failures += assert_token(teststr, &buf, LITERAL_OR_ID, "\"a\001\\x\\\"\"");
@@ -89,6 +92,7 @@ static int test_literals() {
     failures += assert_token(teststr, &buf, LITERAL_OR_ID, "'\\''");
     failures += assert_token(teststr, &buf, END_OF_EXPRESSION, 0);
 
+    done_lex(buf);
     return failures;
 }
 
@@ -117,6 +121,7 @@ int main() {
                 break;
             }
         }
+        done_lex(buf);
         ++i;
     }
     return failures > 0 ? 1 : 0;

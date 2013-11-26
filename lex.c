@@ -7,6 +7,7 @@
 #include <stdbool.h>
 
 #include "lex.h"
+#include "obstack_helper.h"
 
 const char *token_names[] = {
 
@@ -130,7 +131,12 @@ lex_buf start_lex(const char* expr) {
     if (rules == 0) {
         rules = make_token_rules(token_specs);
     }
+    obstack_init(&buf.obstack);
     return buf;
+}
+
+void done_lex(lex_buf buf) {
+    obstack_free(&buf.obstack, 0);
 }
 
 static void read_integer_literal(const char** pos_ref) {
@@ -223,7 +229,8 @@ static bool read_hex_literal(const char** pos_ref) {
 }
 
 
-static const char* read_literal_or_id(const char* pos, struct token* token) {
+static const char* read_literal_or_id(lex_buf* buf, const char* pos,
+                                      struct token* token) {
     token->token_type = LITERAL_OR_ID;
     const char *start = pos;
     switch (*start) {
@@ -257,7 +264,7 @@ static const char* read_literal_or_id(const char* pos, struct token* token) {
             pos++;
         }
     }
-    token->token_value = strndup(start, pos - start);
+    token->token_value = obstack_strndup(&buf->obstack, start, pos - start);
     return pos;
 }
 
@@ -280,7 +287,7 @@ struct token get_next_token(lex_buf* buf) {
                 token.token_type = rule->token_type;
                 goto done;
             } else {
-                pos = read_literal_or_id(pos, &token);
+                pos = read_literal_or_id(buf, pos, &token);
                 goto done;
             }
         } else if (rule->token_type == START_COMMENT) {
@@ -317,7 +324,8 @@ struct token get_next_token(lex_buf* buf) {
                     }
                 }
                 pos++;
-                token.token_value = strndup(start, pos - start);
+                char* val = obstack_strndup(&buf->obstack, start, pos - start);
+                token.token_value = val;
                 token.token_type = LITERAL_OR_ID;
                 goto done;
             }
@@ -330,12 +338,12 @@ struct token get_next_token(lex_buf* buf) {
                         pos += 6;
                         goto done;
                 } else {
-                    pos = read_literal_or_id(pos, &token);
+                    pos = read_literal_or_id(buf, pos, &token);
                     goto done;
                 }
                 break;
             default:
-                token.token_value = strdup(pos);
+                token.token_value = obstack_strdup(&buf->obstack, pos);
                 token.token_type = BOGUS;
                 pos++;
                 goto done;

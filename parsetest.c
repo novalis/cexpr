@@ -57,14 +57,18 @@ int main() {
         struct parse_result* result = parse(spec->input);
         if (result->is_error) {
             printf("Failed to parse %s: %s\n", spec->input, result->error_message);
-            continue;
+            goto end_of_loop;
         }
         write_tree_to_string(result->node, buf);
         if (strcmp(buf, spec->parenthesized)) {
             bad++;
             printf("Bad parse of %s: expected %s, got %s\n", spec->input, spec->parenthesized, buf);
         }
+    end_of_loop:
+        free_parse_result_contents(result);
+        free(result);
         free(buf);
+        continue;
     }
     if (bad) {
         printf ("%d failed tests\n", bad);

@@ -2,7 +2,7 @@ CC=gcc
 CFLAGS=-c -Wall -Wextra -pedantic --std=c11 -g
 LDFLAGS=
 
-SOURCES=lex.c parse.c layout.c
+SOURCES=lex.c parse.c layout.c obstack_helper.c
 
 EXPR_PARSE_SOURCES=main.c $(SOURCES)
 EXPR_PARSE_OBJECTS=$(EXPR_PARSE_SOURCES:.c=.o)

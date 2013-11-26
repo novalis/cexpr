@@ -1,6 +1,8 @@
 #ifndef LEX_H
 #define LEX_H
 
+#include <obstack.h>
+
 enum token_type {
     LITERAL_OR_ID=1,
     OPEN_PAREN,
@@ -82,10 +84,11 @@ struct token {
 
 typedef struct {
     const char* pos;
-    //...
+    struct obstack obstack;
 } lex_buf;
 
 lex_buf start_lex(const char* expr);
+void done_lex(lex_buf lex_buf);
 
 struct token get_next_token(lex_buf* buf);
 

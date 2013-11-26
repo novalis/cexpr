@@ -8,15 +8,15 @@
 #include <stdbool.h>
 #include <string.h>
 
+#include "obstack_helper.h"
+
 #define PARSE_PUSHBACK_BUF_SIZE 2
 
 struct parse_state {
     lex_buf *buf;
     struct token push_back[PARSE_PUSHBACK_BUF_SIZE];
     char* error_message;
-    struct parse_tree_node** nodelist;
-    int nodes_allocated;
-    int nodes_used;
+    struct obstack* obstack;
 };
 
 static struct parse_tree_node* parse_comma(struct parse_state *state);
@@ -56,10 +56,8 @@ static struct parse_state make_parse_state(lex_buf* buf) {
         state.push_back[i].token_type = 0;
     }
     state.error_message = 0;
-    state.nodes_allocated = 100;
-    state.nodelist = malloc(sizeof(struct parse_tree_node *) *
-                            state.nodes_allocated);
-    state.nodes_used = 0;
+    state.obstack = malloc(sizeof(struct obstack));
+    obstack_init(state.obstack);
     return state;
 }
 
@@ -82,49 +80,19 @@ static void error(struct parse_state* state, const char* message, ...) {
     state->error_message = errbuf;
 }
 
-static void free_tree_node(struct parse_tree_node *node) {
-    if (node->text) {
-        free((void*)node->text);
-        node->text = 0;
-    }
-    if (node->first_child) {
-        free_tree_node(node->first_child);
-        node->first_child = 0;
-    }
-    if (node->next_sibling) {
-        free_tree_node(node->next_sibling);
-        node->next_sibling = 0;
-    }
-}
-
-void free_result_tree(struct parse_result *result) {
+void free_parse_result_contents(struct parse_result *result) {
     if (result->is_error) {
         free(result->error_message);
         return;
     }
-    free_tree_node(result->node);
+    obstack_free(result->obstack, 0);
+    free(result->obstack);
 }
 
 /* In the event of an error, we need to free the parse
    tree nodes that we have allocated */
 static void free_parse_state(struct parse_state* state) {
-    for (int i = 0; i < state->nodes_used; ++i) {
-        free(state->nodelist[i]);
-        state->nodelist[i] = 0;
-    }
-    state->nodes_used = 0;
-}
-
-static struct parse_tree_node* node_alloc(struct parse_state* state) {
-    if (state->nodes_used == state->nodes_allocated) {
-        state->nodes_allocated *= 2;
-        state->nodelist = realloc(state->nodelist, state->nodes_allocated * sizeof(struct parse_state));
-    }
-    struct parse_tree_node* new_node = malloc(sizeof(struct parse_tree_node));
-    new_node->first_child = new_node->next_sibling = 0;
-    new_node->text = 0;
-    state->nodelist[state->nodes_used++] = new_node;
-    return new_node;
+    obstack_free(state->obstack, 0);
 }
 
 static struct parse_tree_node* make_binary_node(struct parse_state* state,
@@ -132,9 +100,12 @@ static struct parse_tree_node* make_binary_node(struct parse_state* state,
                                          struct parse_tree_node* left, 
                                          struct parse_tree_node* right) {
 
-    struct parse_tree_node* node = node_alloc(state);
+    struct parse_tree_node* node;
+    node = obstack_alloc(state->obstack, sizeof(struct parse_tree_node));
 
+    node->text = 0;
     node->op = op;
+    node->next_sibling = 0;
     node->first_child = left;
     left->next_sibling = right;
     return node;
@@ -142,10 +113,17 @@ static struct parse_tree_node* make_binary_node(struct parse_state* state,
 
 static struct parse_tree_node* make_terminal_node(struct parse_state* state,
                                                   struct token token) {
-    struct parse_tree_node* node = node_alloc(state);
 
+    struct parse_tree_node* node;
+    node = obstack_alloc(state->obstack, sizeof(struct parse_tree_node));
+
+    node->first_child = node->next_sibling = 0;
     node->op = token.token_type;
-    node->text = token.token_value;
+    if (token.token_value) {
+        node->text = obstack_strdup(state->obstack, token.token_value);
+    } else {
+        node->text = 0;
+    }
     return node;
 }
 
@@ -233,22 +211,18 @@ static int is_type_word(struct token token) {
     return 0;
 }
 
-static char* append_token(char* existing, struct token token) {
+static void append_token(struct obstack* obstack, struct token token) {
     const char* token_str;
     if (token.token_value) {
         token_str = token.token_value;
     } else {
         token_str = token_names[token.token_type];
     }
-    if (!existing) {
-        return strdup(token_str);
+
+    if (obstack_object_size(obstack)) {
+        obstack_1grow(obstack, ' ');
     }
-    int token_str_len = strlen(token_str);
-    int existing_len = strlen(existing);
-    char* new_str = realloc(existing, existing_len + token_str_len + 2);
-    new_str[existing_len] = ' ';
-    strcpy(new_str + existing_len + 1, token_str);
-    return new_str;
+    obstack_grow(obstack, token_str, strlen(token_str));
 
 }
 
@@ -361,15 +335,15 @@ static struct parse_tree_node* parse_primary_expression(struct parse_state *stat
 
 static char* parse_parenthesized_typename(struct token tok, struct parse_state* state) {
     //parse until close-paren
-    char* typename = 0;
     while (tok.token_type != CLOSE_PAREN) {
         if (tok.token_type == END_OF_EXPRESSION) {
             return 0;
         }
-        typename = append_token(typename, tok);
+        append_token(state->obstack, tok);
         tok = get_next_parse_token(state);
     }
-    return typename;
+    obstack_1grow(state->obstack, 0);
+    return obstack_finish(state->obstack);
 }
 
 /*
@@ -396,7 +370,7 @@ static struct parse_tree_node* parse_unop(struct parse_state *state) {
         } else {
             //sizeof var
             node = make_terminal_node(state, sizeof_tok);
-            node->text = strdup(tok.token_value);
+            node->text = obstack_strdup(state->obstack, tok.token_value);
         }
 
     } else if (is_unop(tok)) {
@@ -581,6 +555,8 @@ struct parse_result* parse(const char* string) {
     lex_buf lex_buf = start_lex(string);
     struct parse_state state = make_parse_state(&lex_buf);
     struct parse_tree_node* node = parse_comma(&state);
+    done_lex(lex_buf);
+
     struct parse_result* result = malloc(sizeof(struct parse_result));
     if (!node) {
         result->is_error = true;
@@ -591,6 +567,7 @@ struct parse_result* parse(const char* string) {
         if (tok.token_type == END_OF_EXPRESSION) {
             result->is_error = false;
             result->node = node;
+            result->obstack = state.obstack;
         } else {
             error(&state, "Unparsed portion of expression starts with %s",
                   token_names[tok.token_type]);

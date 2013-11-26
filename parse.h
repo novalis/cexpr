@@ -2,6 +2,7 @@
 #define PARSE_H
 
 #include "lex.h"
+#include <obstack.h>
 
 struct parse_tree_node;
 
@@ -18,12 +19,13 @@ struct parse_result {
         struct parse_tree_node* node;
         char* error_message;
     };
+    struct obstack* obstack;
 };
 
 struct parse_result* parse(const char* string);
 
 char* write_tree_to_string(struct parse_tree_node* node, char* buf);
 
-void free_result_tree(struct parse_result *result);
+void free_parse_result_contents(struct parse_result *result);
 
 #endif
