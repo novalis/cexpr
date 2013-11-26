@@ -184,14 +184,13 @@ static bool read_float(const char** pos_ref) {
 }
 
 static bool check_octal(const char* start, const char* end) {
-    if (*start != '0') {
-        return true;
-    }
     for (const char* c = start; c != end; ++c) {
         if (*c == '.' || *c == 'E' || *c == 'e') {
             //floats aren't octal
             return true;
         }
+    }
+    for (const char* c = start; c != end; ++c) {
         if (*c == '8' || *c == '9') {
             return false;
         }

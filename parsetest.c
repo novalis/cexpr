@@ -1,11 +1,12 @@
 #include "parse.h"
 #include <stdio.h>
+#include <stdbool.h>
 #include <stdlib.h>
 #include <string.h>
 
 struct testspec {
     const char* input;
-    const char* parenthesized;
+    const char* output;
 };
 
 struct testspec specs[] = {
@@ -17,6 +18,8 @@ struct testspec specs[] = {
     {"a*b+c", "((a*b)+c)"},
     {"a+b*c", "(a+(b*c))"},
     {"a*b*c", "((a*b)*c)"},
+
+    {"a,b,c", "((a,b),c)"},
 
     {"a=b=c", "(a=(b=c))"},
     {"a?b:c?d:e", "(a?(b:(c?(d:e))))"},
@@ -46,9 +49,50 @@ struct testspec specs[] = {
     {"(*t).a", "(*(t).a)"},
 
     {"~a", "~(a)"},
-    {"!a", "!(a)"},
+    {"p = 0x17.fp1", "(p=0x17.fp1)"},
+    {"p = .1", "(p=.1)"},
     {0, 0}
 };
+
+struct testspec expected_failures[] = {
+    {"\001", "Bogus token '\001'"},
+    {"(a", "Missing ) parsing parenthesized expression"},
+    {"(unsigned int *", "Missing ) in (assumed) typecast"},
+    {"(unsigned int *)a)", "Unexpected ')' at end of input"},
+    {"a[", "Missing ] at end of input"},
+    {"a[5", "Missing ]"},
+    {"", "Empty expression"},
+    {0, 0}
+};
+
+int test_parse_failures() {
+    int bad = 0;
+
+    for (struct testspec* spec = expected_failures; spec->input; spec++) {
+        struct parse_result* result = parse(spec->input);
+        if (result->is_error) {
+            if (strcmp(result->error_message, spec->output)) {
+                printf("Wrong error message parsing %s:\n"
+                       "expected: '%s'\n"
+                       "got:      '%s'\n",
+                       spec->input,
+                       spec->output,
+                       result->error_message);
+                bad ++;
+            }
+        } else {
+            int len = strlen(spec->input);
+            char* buf = malloc(len * 3 + 1);
+            write_tree_to_string(result->node, buf);
+            printf("Failed to fail parsing %s: %s\n", spec->input, buf);
+            bad++;
+            free(buf);
+        }
+        free_parse_result_contents(result);
+        free(result);
+    }
+    return bad;
+}
 
 int main() {
     int bad = 0;
@@ -61,9 +105,9 @@ int main() {
             goto end_of_loop;
         }
         write_tree_to_string(result->node, buf);
-        if (strcmp(buf, spec->parenthesized)) {
+        if (strcmp(buf, spec->output)) {
             bad++;
-            printf("Bad parse of %s: expected %s, got %s\n", spec->input, spec->parenthesized, buf);
+            printf("Bad parse of %s: expected %s, got %s\n", spec->input, spec->output, buf);
         }
     end_of_loop:
         free_parse_result_contents(result);
@@ -71,6 +115,8 @@ int main() {
         free(buf);
         continue;
     }
+
+    bad += test_parse_failures();
     if (bad) {
         printf ("%d failed tests\n", bad);
         return 1;
