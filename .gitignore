@@ -1,7 +1,11 @@
 *~
 *.o
+*.gcov
+*.gcda
+*.gcno
 a.out
 core
+vgcore.*
 *.h.gch
 expr_parse
 expr_svg
