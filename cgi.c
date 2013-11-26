@@ -10,18 +10,14 @@
 
 extern char **environ;
 
-static int my_strcmp(const void* a, const void* b) {
-    return strcmp((char *)a, (*(struct cgi_var **) b)->key);
-}
-
 struct cgi_var* get_cgi_var(struct cgi* cgi, const char* var_name) {
-    struct cgi_var** var = bsearch(var_name, cgi->vars, cgi->n_vars, 
-                                   sizeof(struct cgi_var), my_strcmp);
-    if (var) {
-        return *var;
-    } else {
-        return 0;
+    for (int i = 0; i < cgi->n_vars; ++i) {
+        struct cgi_var* var = cgi->vars + i;
+        if (!strcmp(var->key, var_name)) {
+            return var;
+        }
     }
+    return 0;
 }
 
 static char* unescape(const char* str) {
@@ -51,13 +47,13 @@ static char* unescape(const char* str) {
     return dup;
 }
 
-static struct cgi_var* new_var(const char* key, const char* value) {
-    struct cgi_var* var = malloc(sizeof(struct cgi_var));
-    var->key = unescape(key);
-    var->values = malloc(sizeof(char*));
-    var->values[0] = unescape(value);
-    var->n_values = 1;
-    var->values_allocated = 1;
+static struct cgi_var new_var(const char* key, const char* value) {
+    struct cgi_var var;
+    var.key = unescape(key);
+    var.values = malloc(sizeof(char*));
+    var.values[0] = unescape(value);
+    var.n_values = 1;
+    var.values_allocated = 1;
     return var;
 }
 
@@ -71,10 +67,10 @@ static void add_value(struct cgi_var* var, const char* value) {
 
 static void add_var(struct cgi* cgi, struct cgi_var* var) {
     if (cgi->n_vars >= cgi->vars_allocated) {
-        cgi->vars_allocated *= 2;
-        cgi->vars = realloc(cgi->vars, cgi->vars_allocated * sizeof(struct cgi_var*));
+        cgi->vars_allocated = (cgi->vars_allocated + 1) * 2;
+        cgi->vars = realloc(cgi->vars, cgi->vars_allocated * sizeof(struct cgi_var));
     }
-    cgi->vars[cgi->n_vars++] = var;
+    cgi->vars[cgi->n_vars++] = *var;
 }
 
 static struct cgi* parse_query_string(const char* query_string) {
@@ -97,7 +93,8 @@ static struct cgi* parse_query_string(const char* query_string) {
         if (var) {
             add_value(var, value);
         } else {
-            var = new_var(var_name, value);
+            struct cgi_var created = new_var(var_name, value);
+            var = &created;
             add_var(cgi, var);
         }
     }

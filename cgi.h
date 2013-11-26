@@ -14,7 +14,7 @@ struct cgi_var {
 };
 
 struct cgi {
-    struct cgi_var** vars;
+    struct cgi_var* vars;
     int n_vars;
     int vars_allocated;
 };
