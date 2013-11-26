@@ -1,0 +1,18 @@
+<html>
+<head>
+<title>
+C expression parser
+</title>
+</head>
+<body>
+
+<form method="GET" action="expr.cgi" target="graph">
+  <label for="expr">Enter a C expression:</label>
+  <input type="text" name="expr" id="expr" value="a=b">
+  <input type="submit" name="parse" value="Parse!">
+</form>
+<iframe src="expr.cgi?expr=a%3db" id="graph">
+</iframe>
+
+
+</body>
