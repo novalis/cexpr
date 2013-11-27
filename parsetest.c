@@ -75,7 +75,7 @@ struct testspec expected_failures[] = {
     {"a[", "Missing ] at end of input"},
     {"a[5", "Missing ]"},
     {"a[5,", "Unexpected eof"},
-    {"f(,", "Missing ) while parsing function call"},
+    {"f(,", "Unexpected eof while parsing function call"},
     {"a.*", "Expected identifier before * token"},
     {"-&a.*", "Expected identifier before * token"},
     {"(int)\001", "Bogus token '\001'"},
@@ -83,6 +83,9 @@ struct testspec expected_failures[] = {
     {"a?b:c?d*", "Unexpected eof"},
     {"a=*", "Unexpected eof"},
     {"a 1", "Unexpected literal"},
+    {"(foo)a", "Unexpected literal"},
+    {"b)", "Unexpected ) at end of input"},
+    {"baz((foo)a)", "Unexpected literal while parsing function call"},
     {"", "Empty expression"},
     {0, 0}
 };
@@ -90,7 +93,7 @@ struct testspec expected_failures[] = {
 int test_parse_failures() {
     int bad = 0;
     for (struct testspec* spec = expected_failures; spec->input; spec++) {
-        struct parse_result* result = parse(spec->input);
+        struct parse_result* result = parse(spec->input, 0);
         if (result->is_error) {
             if (strcmp(result->error_message, spec->output)) {
                 printf("Wrong error message parsing %s:\n"
@@ -121,7 +124,7 @@ int main() {
     for (struct testspec* spec = specs; spec->input; spec++) {
         int len = strlen(spec->input);
         char* buf = malloc(len * 3 + 1);
-        struct parse_result* result = parse(spec->input);
+        struct parse_result* result = parse(spec->input, 0);
         if (result->is_error) {
             printf("Failed to parse %s: %s\n", spec->input, result->error_message);
             goto end_of_loop;

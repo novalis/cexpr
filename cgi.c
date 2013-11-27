@@ -119,16 +119,42 @@ struct cgi* init() {
 
 int main() {
     struct cgi* cgi = init();
-    struct cgi_var* var = get_cgi_var(cgi, "expr");
-    if (!var) {
+    struct cgi_var* expr_var = get_cgi_var(cgi, "expr");
+    struct cgi_var* typename_var = get_cgi_var(cgi, "typenames");
+    if (!expr_var) {
         printf("Content-type: text/html\n\n");
         printf("Error: missing arg expr\n");
         return 0;
     }
 
-    const char* expr = var->values[0];
+    const char* expr = expr_var->values[0];
 
-    struct parse_result* result = parse(expr);
+    char** typenames = 0;
+    if (typename_var) {
+        char* typename_str = strdup(typename_var->values[0]);
+        int n_typenames = 1;
+        for (char* c = typename_str; *c; ++c) {
+            if (*c == ',') {
+                ++n_typenames;
+            }
+        }
+        typenames = malloc((n_typenames + 1) * sizeof(char*));
+        int i = 0;
+        if (strlen(typename_str)) {
+            typenames[i++] = typename_str;
+        }
+        for (char* c = typename_str; *c; ++c) {
+            if (*c == ',') {
+                *c = 0;
+                if (strlen(c)) {
+                    typenames[i++] = c;
+                }
+            }
+        }
+        typenames[i] = 0;
+    }
+
+    struct parse_result* result = parse(expr, typenames);
     if (result->is_error) {
         printf("Content-type: text/html\n\n");
         printf("Error: parsing %s: %s\n", expr, result->error_message);

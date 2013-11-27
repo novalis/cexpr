@@ -8,10 +8,17 @@ C expression parser
 
 <form method="GET" action="expr.cgi" target="graph">
   <label for="expr">Enter a C expression:</label>
-  <input type="text" name="expr" id="expr" value="a=b">
+  <input type="text" name="expr" id="expr" value="a=b" size="100">
+
+  <label for="typenames">
+    You may need to enter some typenames, if you cast to types which
+    aren't standard c types.  Separate them with commas.
+  </label>
+  <input type="text" name="typenames" id="typenames" value="" size="100">
+
   <input type="submit" name="parse" value="Parse!">
 </form>
-<iframe src="expr.cgi?expr=a%3db" id="graph">
+<iframe src="expr.cgi?expr=a%3db" id="graph" width="1000" height="1000">
 </iframe>
 
 

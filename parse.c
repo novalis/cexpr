@@ -26,6 +26,28 @@ struct parse_state {
     struct token push_back[PARSE_PUSHBACK_BUF_SIZE];
     char* error_message;
     struct obstack* obstack;
+    char** typename_starters;
+};
+
+/*
+   These are C's built-in types (or at least the first words thereof)
+ */
+static char* typename_starters[] = {
+    "bool",
+    "char",
+    "double",
+    "float",
+    "int",
+    "long",
+    "off_t",
+    "ptrdiff_t",
+    "signed",
+    "short",
+    "size_t",
+    "struct",
+    "time_t",
+    "unsigned",
+    0
 };
 
 static struct parse_tree_node* parse_comma(struct parse_state *state);
@@ -59,14 +81,41 @@ static void push_back(struct parse_state* state,
     }
 }
 
-static struct parse_state make_parse_state(lex_buf* buf) {
-    struct parse_state state = {.buf = buf};
+static int count_typenames(char** typenames) {
+    if (typenames == 0) {
+        return 0;
+    }
+    int i = 0;
+    for (char** name = typenames; *name; ++name) {
+        ++i;
+    }
+    return i;
+}
+
+static void copy_typenames(char** dest, char** src) {
+    if (!src) {
+        return;
+    }
+    while ((*dest++ = *src++)) {}
+}
+
+static struct parse_state make_parse_state(lex_buf* buf, char** typenames) {
+    struct parse_state state = {.buf = buf, .error_message = 0};
     for (int i = 0; i < PARSE_PUSHBACK_BUF_SIZE; ++i) {
         state.push_back[i].token_type = 0;
     }
-    state.error_message = 0;
     state.obstack = malloc(sizeof(struct obstack));
     obstack_init(state.obstack);
+
+    int custom_typenames = count_typenames(typenames);
+    int n_typenames = custom_typenames + count_typenames(typename_starters);
+
+    state.typename_starters = malloc((n_typenames + 1) * sizeof(char*));
+    copy_typenames(state.typename_starters, typenames);
+    copy_typenames(state.typename_starters + custom_typenames,
+                   typename_starters);
+    state.typename_starters[n_typenames] = 0;
+
     return state;
 }
 
@@ -107,11 +156,13 @@ static void free_parse_state(struct parse_state* state) {
     obstack_free(state->obstack, 0);
     free(state->obstack);
     state->obstack = 0;
+    free(state->typename_starters);
+    state->typename_starters = 0;
 }
 
 static struct parse_tree_node* make_binary_node(struct parse_state* state,
                                          enum token_type op,
-                                         struct parse_tree_node* left, 
+                                         struct parse_tree_node* left,
                                          struct parse_tree_node* right) {
 
     struct parse_tree_node* node;
@@ -193,31 +244,12 @@ static enum token_type binops[][5] = {
     {0}
 };
 
-/* HACK: assume parenthesized expressions starting
- * with one of these are type casts
- */
-static const char* type_name_starters[] = {
-    "bool",
-    "char",
-    "double",
-    "float",
-    "int",
-    "long",
-    "off_t",
-    "ptrdiff_t",
-    "signed",
-    "short",
-    "size_t",
-    "time_t",
-    "unsigned",
-    0
-};
-
-static int is_type_word(struct token token) {
+static int is_typename_first_word(struct parse_state* state,
+                                  struct token token) {
     if (token.token_type != LITERAL_OR_ID) {
         return 0;
     }
-    for (const char** type = type_name_starters; *type; ++type) {
+    for (char** type = state->typename_starters; *type; ++type) {
         if (strcmp(*type, token.token_value) == 0) {
             return 1;
         }
@@ -317,8 +349,17 @@ static struct parse_tree_node* parse_primary_expression(struct parse_state *stat
 
                 tok = get_next_parse_token(state);
                 HANDLE_BOGUS_TOKEN(tok);
-                if (tok.token_type != COMMA) {
-                    push_back(state, tok);
+                if (!match(tok, COMMA)) {
+                    if (match(tok, CLOSE_PAREN)) {
+                        prev_child->next_sibling = next_node;
+                        prev_child = next_node;
+                        break;
+                    } else {
+                        error(state,
+                              "Unexpected %s while parsing function call",
+                              token_names[tok.token_type]);
+                        return 0;
+                    }
                 }
 
                 if (next_node == 0) {
@@ -437,7 +478,7 @@ static struct parse_tree_node* parse_unop(struct parse_state *state) {
         //handle typecasts via hack
         struct token next_tok = get_next_parse_token(state);
         HANDLE_BOGUS_TOKEN(next_tok);
-        if (is_type_word(next_tok)) {
+        if (is_typename_first_word(state, next_tok)) {
             char* typename = parse_parenthesized_typename(next_tok, state);
             if (!typename) {
                 error(state, "Missing ) in (assumed) typecast");
@@ -602,9 +643,10 @@ static bool is_empty(struct parse_state* state) {
     return is_empty;
 }
 
-struct parse_result* parse(const char* string) {
+struct parse_result* parse(const char* string, char** typenames) {
     lex_buf lex_buf = start_lex(string);
-    struct parse_state state = make_parse_state(&lex_buf);
+    struct parse_state state = make_parse_state(&lex_buf, typenames);
+
     struct parse_tree_node* node = 0;
     if (is_empty(&state)) {
         state.error_message = strdup("Empty expression");

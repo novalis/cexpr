@@ -22,7 +22,7 @@ struct parse_result {
     struct obstack* obstack;
 };
 
-struct parse_result* parse(const char* string);
+struct parse_result* parse(const char* string, char** typenames);
 
 char* write_tree_to_string(struct parse_tree_node* node, char* buf);
 
