@@ -7,7 +7,7 @@
 #define CGI_H
 
 struct cgi_var {
-    char* key;
+    char* var;
     char** values;
     int n_values;
     int values_allocated;
@@ -19,7 +19,7 @@ struct cgi {
     int vars_allocated;
 };
 
-struct cgi_var* get_cgi_var(struct cgi* cgi, const char* var_name);
-struct cgi* init();
+struct cgi_var* cgi_get_var(struct cgi* cgi, const char* var_name);
+struct cgi* cgi_init();
 
 #endif

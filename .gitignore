@@ -12,3 +12,4 @@ expr_svg
 expr.cgi
 lextest
 parsetest
+cgitest
