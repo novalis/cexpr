@@ -75,7 +75,7 @@ struct testspec expected_failures[] = {
     {"a[", "Missing ] at end of input"},
     {"a[5", "Missing ]"},
     {"a[5,", "Unexpected eof"},
-    {"f(,", "Unexpected eof while parsing function call"},
+    {"f(,", "Missing ) while parsing function call"},
     {"a.*", "Expected identifier before * token"},
     {"-&a.*", "Expected identifier before * token"},
     {"(int)\001", "Bogus token '\001'"},

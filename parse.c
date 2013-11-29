@@ -346,6 +346,10 @@ static struct parse_tree_node* parse_primary_expression(struct parse_state *stat
                     push_back(state, tok);
                     next_node = parse_assignop(state);
                 }
+                if (next_node == 0) {
+                    error(state, "Missing ) while parsing function call");
+                    return 0;
+                }
 
                 tok = get_next_parse_token(state);
                 HANDLE_BOGUS_TOKEN(tok);
@@ -362,10 +366,6 @@ static struct parse_tree_node* parse_primary_expression(struct parse_state *stat
                     }
                 }
 
-                if (next_node == 0) {
-                    error(state, "Missing ) while parsing function call");
-                    return 0;
-                }
                 prev_child->next_sibling = next_node;
                 prev_child = next_node;
             }
