@@ -90,6 +90,34 @@ struct testspec expected_failures[] = {
     {0, 0}
 };
 
+char* typenames[] = {"foo", "charmander"};
+int test_typenames() {
+    int bad = 0;
+    char* test = "(charmander)a";
+    struct parse_result* result = parse(test, 0);
+    if (!result->is_error) {
+        int len = strlen(test);
+        char* buf = malloc(len * 3 + 1);
+        write_tree_to_string(result->node, buf);
+        printf("Failed to fail parsing %s: %s\n", test, buf);
+        bad++;
+        free(buf);
+    }
+    free_parse_result_contents(result);
+    free(result);
+
+    result = parse(test, typenames);
+    if (result->is_error) {
+        printf("Failed to parse typecast to typedef with hint: %s", result->error_message);
+        bad++;
+    }
+    free_parse_result_contents(result);
+    free(result);
+
+    return bad;
+    
+}
+
 int test_parse_failures() {
     int bad = 0;
     for (struct testspec* spec = expected_failures; spec->input; spec++) {
