@@ -109,17 +109,10 @@ static struct token_rule* make_token_rules(struct token_spec* token_spec) {
     rule->token_type = 0;
     rule->children = calloc (256, sizeof(struct token_rule));
     while (*token_spec->text) {
-        unsigned char c = token_spec->text[0];
-        struct token_rule* child = &rule->children[c];
-        child->token_type = token_spec->token_type;
-
-        const char* text = token_spec->text;
+        add_child_token_rule(rule, token_spec->text,
+                             token_spec->token_type);
         token_spec ++;
-        while (*text == *token_spec->text) {
-            add_child_token_rule(rule, token_spec->text,
-                                 token_spec->token_type);
-            token_spec ++;
-        }
+
     }
     return rule;
 }
