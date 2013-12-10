@@ -7,7 +7,7 @@
 
 static int dump_tree(const char* expr) {
 
-    struct parse_result* result = parse(expr);
+    struct parse_result* result = parse(expr, 0);
     if (result->is_error) {
         printf("Error: %s\n", result->error_message);
     } else {
